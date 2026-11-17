@@ -149,7 +149,23 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
 .modal img{width:100%;height:auto;display:block;border:1px solid var(--rule)}
 .modal .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
 .modal .hint{font-family:var(--font-data);font-size:11px;color:var(--parchment-dim)}
-@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+/* ---------- bay notices ---------- */
+.notices{position:fixed;right:16px;bottom:16px;z-index:9;display:flex;flex-direction:column-reverse;gap:10px;width:min(360px,calc(100vw - 32px));pointer-events:none}
+.notice{pointer-events:auto;background:#0a161e;border:1px solid var(--rule);border-top:3px solid var(--parchment-dim);padding:12px 14px 12px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.45);animation:rise .35s ease-out}
+.notice.k-shark{border-top-color:var(--shark)}.notice.k-grave{border-top-color:var(--parchment-dim)}.notice.k-jump{border-top-color:var(--shark)}
+.notice.k-copy{border-top-color:var(--brass)}.notice.k-grad,.notice.k-light{border-top-color:var(--brass)}
+.notice .nh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.notice .eb{font-family:var(--font-data);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--parchment-dim)}
+.notice .x{background:none;border:0;color:var(--parchment-dim);font:16px/1 var(--font-data);cursor:pointer;padding:6px 8px;margin:-6px -8px -6px 0;min-width:32px;min-height:32px}
+.notice .big{font-family:var(--font-display);font-weight:400;font-size:26px;line-height:1.05;word-break:break-word}
+.notice .big.mono{font-family:var(--font-data);font-weight:500;font-size:20px}
+.notice .ln{margin:0;font-style:italic;color:var(--parchment-dim);font-size:15px}
+.notice .st{font-family:var(--font-data);font-size:12px;color:var(--parchment)}
+.notice .acts{display:flex;gap:8px;margin-top:4px}
+.notice .acts button{font-family:var(--font-data);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:7px 10px;border:1px solid var(--rule);background:transparent;color:var(--parchment);cursor:pointer}
+.notice .acts button.sh{border-color:var(--brass);color:var(--brass)}
+@keyframes rise{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}.notice{animation:none}}
 </style>
 </head>
 <body>
@@ -202,6 +218,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
     <button class="hbtn" type="button" data-speed="60" aria-pressed="false">×60</button>
   </div>
   <button class="hbtn" type="button" id="sound" aria-pressed="false">Sound off</button>
+  <button class="hbtn" type="button" id="alerts" aria-pressed="true">Notices on</button>
   <div class="spymsg" id="spyMsg" role="status"></div>
 </div>
 
@@ -273,6 +290,8 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
     <span id="foot">&nbsp;</span>
   </footer>
 </main>
+
+<div class="notices" id="notices" aria-live="polite"></div>
 
 <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
   <div class="box">
@@ -356,7 +375,7 @@ function addShip(o, index){
   if (index!=null) S.ships[index] = ship; else S.ships.push(ship);
   S.byCurve.set(o.curve, ship); S.byToken.set(o.token.toLowerCase(), ship);
   pushLog(o.t0, "launch", `<b>${esc(ship.sym||"?")}</b> set sail${ship.name?` · ${esc(ship.name)}`:""}`, ship);
-  if (!S.silent) sfx("bell");
+  if (!S.silent){ sfx("bell"); checkCopycat(ship); }
   return ship;
 }
 function trader(addr){
@@ -385,8 +404,12 @@ function applyTrade(e){
     S.splashes.push({ship:s, side:e.side, born:performance.now(), size:Math.min(1,Math.sqrt(e.eth)*1.4)});
     if (e.eth >= 0.4 && S.weather.storm > 0.3) strike(s);
   }
-  if (s === S.lh.ship && e.side===0){ S.lh.flash = 1; if(!S.silent) sfx("bell"); pushLog(e.t,"light",`The lighthouse flashed: $WRECK buy · ${fmt(e.eth,3)} ETH`, s); }
-  if (s.state!=="graduated" && s.net >= CONFIG.GRAD){ s.state="graduated"; s.gradAt=e.t; pushLog(e.t,"grad",`<b>${esc(s.sym)}</b> filled its curve and graduated`, s); if(!S.silent) sfx("grad"); }
+  if (e.who && s.dev && e.who===s.dev){
+    if (e.side===0) s.devIn = (s.devIn||0) + e.eth; else s.devOut = (s.devOut||0) + e.eth;
+    if (!s.jumpNoticed && s.devIn > 0 && s.devOut >= s.devIn*0.8){ s.jumpNoticed = true; if (!S.silent) noticeJump(s, s.devIn, s.devOut); }
+  }
+  if (s === S.lh.ship && e.side===0){ S.lh.flash = 1; if(!S.silent){ sfx("bell"); notice({kind:"light", eb:"The lighthouse", big:"$WRECK", line:"A light on the cliff. Someone bought $WRECK.", st:`${fmt(e.eth,3)} ETH`, ship:s, pri:3}); } pushLog(e.t,"light",`The lighthouse flashed: $WRECK buy · ${fmt(e.eth,3)} ETH`, s); }
+  if (s.state!=="graduated" && s.net >= CONFIG.GRAD){ s.state="graduated"; s.gradAt=e.t; pushLog(e.t,"grad",`<b>${esc(s.sym)}</b> filled its curve and graduated`, s); if(!S.silent){ sfx("grad"); notice({kind:"grad", eb:"Open water", big:s.sym, line:"Filled her curve and sailed off to a DEX.", st:`${fmt(s.vol)} ETH traded · ${s.sharks.size} sharks survived`, ship:s, pri:3}); } }
 }
 function recordExit(who, ship, t, eth){
   const tr = trader(who); tr.outE += eth;
@@ -395,11 +418,14 @@ function recordExit(who, ship, t, eth){
 function stepStates(t){
   for (const s of S.ships){
     if (!s || s.t0 > t) continue;
-    if (s.state==="afloat" && t - s.last > CONFIG.IDLE){ s.state="sinking"; s.sinkAt = s.last + CONFIG.IDLE; }
+    if (s.state==="afloat" && t - s.last > CONFIG.IDLE){ s.state="sinking"; s.sinkAt = s.last + CONFIG.IDLE;
+      // recordings carry the captain's verdict from the dossier; live mode sees the captain's sells as they happen
+      if (!S.silent && S.mode==="replay" && !s.jumpNoticed){ const d=s.dossier||{}; if (d.inE>0 && d.outE>=d.inE*0.8){ s.jumpNoticed=true; noticeJump(s, d.inE, d.outE); } }
+    }
     if (s.state==="sinking" && t - s.sinkAt > CONFIG.SINK){
       s.state="wreck"; s.wreckAt = s.sinkAt + CONFIG.SINK;
       pushLog(s.wreckAt,"sank",`<b>${esc(s.sym)}</b> settled on the seabed with ${fmt(s.vol)} ETH traded`, s);
-      if (!S.silent) sfx("sink");
+      if (!S.silent){ sfx("sink"); if (s.vol >= 0.5) notice({kind:"grave", eb:"The graveyard", big:`Here lies ${s.sym}`, line:epitaph(s), st:`${clockTxt(S.base+s.t0)} – ${clockTxt(S.base+s.wreckAt)} · ${fmt(s.vol)} ETH · ${s.sharks.size} shark${s.sharks.size===1?"":"s"}`, ship:s, pri:2}); }
     }
   }
   // weather from launchpad-wide volume in the last five minutes
@@ -456,6 +482,7 @@ function seek(target){
   resetModel(); S.events = S.replay.ev; S.silent = true;
   for (let t = 0; t <= target; t += 5) advanceTo(t);
   advanceTo(target); S.t = target; S.silent = false;
+  S.lastSharkNotice = S.t; clearNotices();
   S.selected = (keepTok && S.byToken.get(keepTok.toLowerCase())) || bestShip();
   S.selShark = keepShark && S.traders.has(keepShark) ? keepShark : null;
   if (S.trackedTok) S.tracked = S.byToken.get(S.trackedTok) || null;
@@ -552,7 +579,7 @@ async function nameShips(list){
     const part = list.slice(i,i+10);
     try{
       const res = await rpcBatch(part.flatMap(s=>[["eth_call",[{to:s.token,data:"0x06fdde03"},"latest"]],["eth_call",[{to:s.token,data:"0x95d89b41"},"latest"]]]));
-      part.forEach((s,k)=>{ s.name = decodeStr(res[2*k]); s.sym = decodeStr(res[2*k+1]) || short(s.token); });
+      part.forEach((s,k)=>{ s.name = decodeStr(res[2*k]); s.sym = decodeStr(res[2*k+1]) || short(s.token); if (!S.silent && S.t - s.t0 < 120) checkCopycat(s); });
       logDirty = true;
     }catch(e){}
   }
@@ -909,6 +936,8 @@ function frame(nowMs){
     S.t = Date.now()/1000 - S.base;
     stepStates(S.t);
   }
+  if (!S.silent && S.mode!=="error" && S.t - (S.lastSharkNotice ?? S.t) >= 1200) sharkOfTheHour();
+  if (S.lastSharkNotice == null) S.lastSharkNotice = S.t;
   // ease the weather
   const w = S.weather, k = Math.min(1, dt*0.8);
   w.storm += ((w.target||0) - w.storm) * k; w.fog += ((w.fogTarget||0) - w.fog) * k;
@@ -1124,6 +1153,84 @@ $("graves").addEventListener("click", e => rowAct(e, pickShip));
 $("graves").addEventListener("keydown", e => { if (e.key==="Enter") rowAct(e, pickShip); });
 $("sharks").addEventListener("click", e => rowAct(e, tr => selectShark(tr.dataset.a)));
 $("sharks").addEventListener("keydown", e => { if (e.key==="Enter") rowAct(e, tr => selectShark(tr.dataset.a)); });
+
+/* ======================= bay notices ======================= */
+const N = {on: load("wreckd-notices")!=="off", queue: [], lastShown: 0};
+function notice(n){
+  if (!N.on) return;
+  N.queue.push(n);
+  N.queue.sort((a,b)=>b.pri-a.pri);
+  if (N.queue.length > 4) N.queue.length = 4; // drop the least important when the bay is busy
+}
+function pumpNotices(){
+  const now = performance.now();
+  if (!N.queue.length || now - N.lastShown < 2600) return;
+  const box = $("notices");
+  while (box.children.length >= 2) box.lastElementChild.remove();
+  const n = N.queue.shift(); N.lastShown = now;
+  const el = document.createElement("div");
+  el.className = "notice k-"+n.kind;
+  el.innerHTML = `<div class="nh"><span class="eb">${esc(n.eb)}</span><button class="x" type="button" aria-label="Dismiss">×</button></div>
+    <b class="big${n.mono?" mono":""}">${esc(n.big)}</b>${n.line?`<p class="ln">${esc(n.line)}</p>`:""}${n.st?`<span class="st">${esc(n.st)}</span>`:""}
+    <div class="acts"><button type="button" class="go">${n.shark?"See the shark":"Show in the bay"}</button><button type="button" class="sh">Share</button></div>`;
+  box.prepend(el);
+  let left = 9000, hover = false;
+  el.addEventListener("mouseenter", ()=>hover=true); el.addEventListener("mouseleave", ()=>hover=false);
+  const tick = setInterval(()=>{ if (!hover) left -= 250; if (left<=0){ clearInterval(tick); el.remove(); } }, 250);
+  el.querySelector(".x").onclick = () => { clearInterval(tick); el.remove(); };
+  el.querySelector(".go").onclick = () => { if (n.shark) selectShark(n.shark); else if (n.ship) selectShip(n.ship); $("card").scrollIntoView({behavior: reduced?"auto":"smooth", block:"center"}); };
+  el.querySelector(".sh").onclick = () => { if (n.shark) openSharkPostcard(n.shark, n.sharkStats); else if (n.ship) openPostcard(n.ship); };
+}
+function clearNotices(){ N.queue = []; $("notices").innerHTML = ""; }
+setInterval(pumpNotices, 400);
+$("alerts").setAttribute("aria-pressed", N.on); $("alerts").textContent = N.on ? "Notices on" : "Notices off";
+$("alerts").addEventListener("click", () => { N.on = !N.on; store("wreckd-notices", N.on?null:"off"); $("alerts").setAttribute("aria-pressed", N.on); $("alerts").textContent = N.on ? "Notices on" : "Notices off"; if (!N.on) clearNotices(); });
+
+function checkCopycat(ship){
+  const sym = (ship.sym||"").toLowerCase(); if (!sym || sym==="…") return;
+  const twins = S.ships.filter(x => x && x!==ship && x.t0<=ship.t0 && (x.sym||"").toLowerCase()===sym).length;
+  if (twins) notice({kind:"copy", eb:"Copycat", big:ship.sym, line:`The same ticker set sail again, from another captain.`, st:`No. ${twins+1} ${ship.sym} in this bay`, ship, pri:1});
+}
+function noticeJump(s, inE, outE){
+  notice({kind:"jump", eb:"Captain jumped ship", big:s.sym, line:`The captain who launched her sold their own ship.`, st:`bought ${fmt(inE,3)} · sold ${fmt(outE,3)} ETH`, ship:s, pri:2});
+}
+function sharkStats(tr, since){
+  const ships = new Set(tr.bites.filter(b=>b.t>=since).map(b=>b.ship));
+  let inE=0,outE=0,bites=0; const holds=[];
+  for (const sh of ships){ const bb = tr.bites.filter(b=>b.ship===sh); bites += bb.length; inE += bb.reduce((p,b)=>p+b.eth,0); const x = tr.exits.get(sh); if (x){ outE += x.out; holds.push(x.t - bb[0].t); } }
+  return {bites, inE, outE, res: outE-inE, hold: median(holds)};
+}
+function sharkOfTheHour(){
+  S.lastSharkNotice = S.t;
+  let best = null;
+  for (const tr of S.traders.values()){ if (!tr.bites.length) continue; const st = sharkStats(tr, S.t-3600); if (st.bites && (!best || st.res > best.st.res)) best = {tr, st}; }
+  if (!best || best.st.res <= 0) return;
+  const st = best.st;
+  notice({kind:"shark", eb:"Shark of the hour", big:short(best.tr.addr), mono:true, line:`Bit ${st.bites} launch${st.bites===1?"":"es"} in their first three seconds${st.hold!=null?`, held for ${ago(st.hold)}`:""}.`,
+    st:`${fmt(st.inE,3)} in · ${fmt(st.outE,3)} out · +${fmt(st.res,3)} ETH`, shark:best.tr.addr, sharkStats:st, pri:2});
+}
+function openSharkPostcard(addr, st){
+  const c = document.createElement("canvas"); c.width = 1200; c.height = 630; const x = c.getContext("2d");
+  const gr = x.createLinearGradient(0,0,0,630); gr.addColorStop(0,"#0f2a3a"); gr.addColorStop(1,"#03080d"); x.fillStyle = gr; x.fillRect(0,0,1200,630);
+  x.strokeStyle="rgba(233,224,200,.3)"; x.lineWidth=2; x.beginPath(); for(let i=0;i<=1200;i+=6) x.lineTo(i, 90+Math.sin(i*.02)*4); x.stroke();
+  x.save(); x.translate(900,360); x.scale(8,8); x.fillStyle="#d65a3c";
+  x.beginPath(); x.ellipse(0,0,18,5,0,0,6.28); x.fill(); x.beginPath(); x.moveTo(-16,0); x.lineTo(-27,-7); x.lineTo(-23,0); x.lineTo(-27,7); x.fill(); x.beginPath(); x.moveTo(-2,-4); x.lineTo(4,-13); x.lineTo(7,-4); x.fill();
+  x.fillStyle="#060d13"; x.beginPath(); x.arc(12,-1,1.1,0,6.28); x.fill(); x.restore();
+  x.textAlign="left"; x.fillStyle="rgba(233,224,200,.65)"; x.font="500 16px 'IBM Plex Mono', monospace"; x.fillText("WRECKD · SHARK OF THE HOUR", 60, 60);
+  x.fillStyle="#e9e0c8"; x.font="500 58px 'IBM Plex Mono', monospace"; x.fillText(short(addr), 60, 190);
+  x.font="italic 26px 'IM Fell English', Georgia, serif"; x.fillStyle="rgba(233,224,200,.75)";
+  x.fillText(`Bit ${st.bites} launch${st.bites===1?"":"es"} in their first three seconds.`, 60, 236);
+  x.font="500 30px 'IBM Plex Mono', monospace"; x.fillStyle="#e9e0c8";
+  x.fillText(`${fmt(st.inE,3)} ETH bitten`, 60, 330); x.fillText(`${fmt(st.outE,3)} ETH taken out`, 60, 376);
+  x.fillStyle="#79b394"; x.fillText(`+${fmt(st.res,3)} ETH`, 60, 422);
+  if (st.hold!=null){ x.fillStyle="#e9e0c8"; x.fillText(`${ago(st.hold)} median hold`, 60, 468); }
+  x.font="500 18px 'IBM Plex Mono', monospace"; x.fillStyle="#c9a24a"; x.fillText(`Wreckd · ${CONFIG.SITE_URL}`, 60, 590);
+  const url = c.toDataURL("image/png");
+  $("pcImg").src = url; $("pcDl").href = url; $("pcDl").download = "wreckd-shark.png";
+  $("pcX").href = `https://x.com/intent/post?text=${encodeURIComponent(`Shark of the hour on Pons: ${short(addr)} bit ${st.bites} launches in their first three seconds and left +${fmt(st.res,3)} ETH up. https://${CONFIG.SITE_URL}`)}`;
+  $("modal").classList.add("open"); $("modalClose").focus();
+  $("pcCopy").onclick = async () => { try{ const blob = await (await fetch(url)).blob(); await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]); $("pcCopy").textContent="Copied"; }catch(e){ $("pcCopy").textContent="Copy not allowed here"; } setTimeout(()=>$("pcCopy").textContent="Copy image",1800); };
+}
 
 /* ======================= postcards ======================= */
 function openPostcard(s){
