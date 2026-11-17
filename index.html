@@ -419,7 +419,7 @@ function applyTrade(e){
     if (!s.jumpNoticed && s.devIn > 0 && s.devOut >= s.devIn*0.8){ s.jumpNoticed = true; if (!S.silent) noticeJump(s, s.devIn, s.devOut); }
   }
   if (s === S.lh.ship && e.side===0){ S.lh.flash = 1; if(!S.silent){ sfx("bell"); notice({kind:"light", eb:"The lighthouse", big:"$WRECK", line:"A light on the cliff. Someone bought $WRECK.", st:`${fmt(e.eth,3)} ETH`, ship:s, pri:3}); } pushLog(e.t,"light",`The lighthouse flashed: $WRECK buy · ${fmt(e.eth,3)} ETH`, s); }
-  if (s.state!=="graduated" && s.net >= CONFIG.GRAD){ s.state="graduated"; s.gradAt=e.t; pushLog(e.t,"grad",`<b>${esc(s.sym)}</b> filled its curve and graduated`, s); if(!S.silent){ sfx("grad"); notice({kind:"grad", eb:"Open water", big:s.sym, line:"Filled her curve and sailed off to a DEX.", st:`${fmt(s.vol)} ETH traded · ${s.sharks.size} sharks survived`, ship:s, pri:3}); } }
+  if (s.state!=="graduated" && s.net >= (s.grad || CONFIG.GRAD)){ s.state="graduated"; s.gradAt=e.t; pushLog(e.t,"grad",`<b>${esc(s.sym)}</b> filled its curve and graduated`, s); if(!S.silent){ sfx("grad"); notice({kind:"grad", eb:"Open water", big:s.sym, line:"Filled her curve and sailed off to a DEX.", st:`${fmt(s.vol)} ETH traded · ${s.sharks.size} sharks survived`, ship:s, pri:3}); } }
 }
 function recordExit(who, ship, t, eth){
   const tr = trader(who); tr.outE += eth;
@@ -527,6 +527,21 @@ const padTopic = a => "0x"+"0".repeat(24)+a.toLowerCase().replace("0x","");
 function decodeStr(h){ try{ if(!h||h.length<130) return ""; const len=parseInt(h.slice(66,130),16); return decodeURIComponent(h.slice(130,130+len*2).replace(/(..)/g,"%$1")); }catch(e){ return ""; } }
 
 const L = { head:0, headTs:0, rate:0.1028, polling:false, extra:new Set() };
+const ZERO = "0x0000000000000000000000000000000000000000";
+// Pons curves can be paired with ETH or with another token (a stock token such as NVDA, a stablecoin…).
+// Every curve graduates at a threshold set in its own pair token, sized to the same value as 4.2 ETH,
+// so a non-ETH amount is shown as its share of that threshold, in ETH terms.
+function launchInfo(l){
+  const d = l.data;
+  const pair = ("0x"+d.slice(2+24, 2+64)).toLowerCase();
+  const thr = BigInt("0x"+d.slice(2+128, 2+192));
+  return {pair, thr, isEth: pair===ZERO};
+}
+function toEthEq(raw, info){
+  if (!info || info.isEth) return Number(raw)/1e18;
+  if (!info.thr) return 0;
+  return CONFIG.GRAD * Number(raw * 1000000n / info.thr) / 1e6;
+}
 const blockT = b => (L.headTs - (L.head - b)*L.rate) - S.base;
 
 async function startLive(){
@@ -558,7 +573,9 @@ async function getLogsChunked(from, to, filter, step=12000){
 function shipFromLaunchLog(l){
   const curve = topicAddr(l.topics[2]);
   if (S.byCurve.has(curve)) return null;
-  return addShip({sym:"…", name:"", token:topicAddr(l.topics[1]), curve, dev:topicAddr(l.topics[3]), t0:blockT(parseInt(l.blockNumber,16))});
+  const info = launchInfo(l);
+  return addShip({sym:"…", name:"", token:topicAddr(l.topics[1]), curve, dev:topicAddr(l.topics[3]), t0:blockT(parseInt(l.blockNumber,16)),
+    pair: info, grad: info.isEth ? (Number(info.thr)/1e18 || CONFIG.GRAD) : CONFIG.GRAD});
 }
 async function ingest(from, to){
   const launches = await getLogsChunked(from, to, {address:CONFIG.FACTORY, topics:[CONFIG.T_LAUNCH]});
@@ -578,7 +595,7 @@ function applyLogs(trades){
     const isBuy = t.topics[0]===CONFIG.T_BUY;
     const first = topicAddr(t.topics[1]);
     const who = isBuy ? topicAddr(t.topics[2]) : first;
-    const eth = Number(isBuy ? word(t.data,0) : word(t.data,1)) / 1e18;
+    const eth = toEthEq(isBuy ? word(t.data,0) : word(t.data,1), ship.pair);
     const tt = blockT(parseInt(t.blockNumber,16));
     const early = isBuy && first!==CONFIG.LAUNCH_AND_BUY && who!==ship.dev && tt - ship.t0 > 0 && tt - ship.t0 <= CONFIG.SNIPE_SEC;
     applyTrade({t:tt, curve:ship.curve, side:isBuy?0:1, eth, who, early});
@@ -590,6 +607,11 @@ async function nameShips(list){
     try{
       const res = await rpcBatch(part.flatMap(s=>[["eth_call",[{to:s.token,data:"0x06fdde03"},"latest"]],["eth_call",[{to:s.token,data:"0x95d89b41"},"latest"]]]));
       part.forEach((s,k)=>{ s.name = decodeStr(res[2*k]); s.sym = decodeStr(res[2*k+1]) || short(s.token); if (!S.silent && S.t - s.t0 < 120) checkCopycat(s); });
+      const others = part.filter(s => s.pair && !s.pair.isEth && !s.pair.sym);
+      if (others.length){
+        const r2 = await rpcBatch(others.map(s=>["eth_call",[{to:s.pair.pair,data:"0x95d89b41"},"latest"]]));
+        others.forEach((s,k)=>{ s.pair.sym = decodeStr(r2[k]) || short(s.pair.pair); });
+      }
       logDirty = true;
     }catch(e){}
   }
@@ -630,13 +652,14 @@ async function loadDossier(ship){
     const from = L.head - CONFIG.DOSSIER_BLOCKS;
     const launches = await rpc("eth_getLogs",[{fromBlock:hex(from),toBlock:hex(L.head),address:CONFIG.FACTORY,topics:[CONFIG.T_LAUNCH,null,null,dv]}],20000);
     const curves = launches.map(l=>topicAddr(l.topics[2]));
+    const infoOf = {}; launches.forEach(l => infoOf[topicAddr(l.topics[2])] = launchInfo(l));
     let inE=0,outE=0;
     for (let k=0;k<curves.length;k+=50){
       const part = curves.slice(k,k+50);
       const sells = await rpc("eth_getLogs",[{fromBlock:hex(from),toBlock:hex(L.head),address:part,topics:[CONFIG.T_SELL,dv]}],20000);
       const buys = await rpc("eth_getLogs",[{fromBlock:hex(from),toBlock:hex(L.head),address:part,topics:[CONFIG.T_BUY,null,dv]}],20000);
-      outE += sells.reduce((a,x)=>a+Number(word(x.data,1))/1e18,0);
-      inE += buys.reduce((a,x)=>a+Number(word(x.data,0))/1e18,0);
+      outE += sells.reduce((a,x)=>a+toEthEq(word(x.data,1), infoOf[x.address.toLowerCase()]),0);
+      inE += buys.reduce((a,x)=>a+toEthEq(word(x.data,0), infoOf[x.address.toLowerCase()]),0);
     }
     ship.dossier = {n:launches.length, inE, outE};
   }catch(e){ ship.dossier = {error:true}; }
@@ -841,7 +864,7 @@ function drawShip(s, now){
   if (wreck){ ctx.lineTo(Ln*0.12,-mh*0.5); } else ctx.lineTo(0,-Ln*0.12-mh);
   ctx.stroke();
   if (!wreck){
-    const fill = Math.max(0.15, Math.min(1, s.net / CONFIG.GRAD + 0.15));
+    const fill = Math.max(0.15, Math.min(1, s.net / (s.grad || CONFIG.GRAD) + 0.15));
     const sw = Ln*0.42*(0.5+fill*0.7);
     const billow = Math.sin(now*2+s.phase)*2*(1+S.weather.storm*2);
     ctx.fillStyle = grad||s.flagship ? "#c9a24a" : s.state==="sinking" ? "rgba(214,90,60,.65)" : "rgba(233,224,200,.88)";
@@ -1054,10 +1077,11 @@ function dossierHtml(s){
     <div class="chips">${chips.join("")}</div>${lines.map(l=>`<p>${l}</p>`).join("")}</div>`;
 }
 function shipCard(s){
-  const pct = Math.min(100, s.net/CONFIG.GRAD*100);
+  const pct = Math.min(100, s.net/(s.grad||CONFIG.GRAD)*100);
+  const paired = s.pair && !s.pair.isEth;
   return `
     <div class="nm">${esc(s.sym||"?")}</div><span class="state st-${s.state}">${stateName[s.state]}</span>
-    <div class="full">${esc(s.name||"")}${s.flagship?" · the lighthouse token":""}</div>
+    <div class="full">${esc(s.name||"")}${s.flagship?" · the lighthouse token":""}${paired?` · trades against ${esc(s.pair.sym||"another token")}, amounts shown in ETH terms`:""}</div>
     <div class="ca-row"><button class="ca-btn" type="button" data-copy="${s.token}" title="Copy contract address"><span class="lbl">CA</span>${s.token}</button></div>
     <div class="facts">
       <div><b>${fmt(s.vol)}</b><span>ETH volume</span></div>
@@ -1066,7 +1090,7 @@ function shipCard(s){
       <div><b>${ago(S.t - s.t0)}</b><span>since launch</span></div>
     </div>
     <div class="prog"><div class="bar"><i style="width:${pct.toFixed(1)}%"></i></div>
-      <div class="lbl"><span>${fmt(s.net)} ETH in the curve</span><span>graduates at ${CONFIG.GRAD} ETH</span></div></div>
+      <div class="lbl"><span>${fmt(s.net)} ETH in the curve</span><span>graduates at ${fmt(s.grad||CONFIG.GRAD,1)} ETH${paired?` (${fmt(Number(s.pair.thr)/1e18,1)} ${esc(s.pair.sym||"")})`:""}</span></div></div>
     ${dossierHtml(s)}
     <div class="links">
       <button class="btn" type="button" id="pcBtn">Make a postcard</button>
