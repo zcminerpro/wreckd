@@ -103,6 +103,14 @@ section .sub{margin:0 0 14px;color:var(--parchment-dim);font-style:italic;font-s
 .chip.good{border-color:var(--kelp);color:var(--kelp)}
 .chip.warn{border-color:var(--brass);color:var(--brass)}
 .bites{grid-column:1/-1;margin-top:12px}
+.ca-row{grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.ca-btn{font-family:var(--font-data);font-size:13px;color:var(--parchment);background:rgba(233,224,200,.05);border:1px solid var(--rule);padding:7px 10px;cursor:pointer;word-break:break-all;text-align:left;min-height:36px}
+.ca-btn:hover{border-color:var(--brass)}
+.ca-btn .lbl{color:var(--brass);margin-right:8px;letter-spacing:.08em}
+.ca-btn.ok{border-color:var(--kelp)}
+.ca-mini{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);background:none;border:1px solid transparent;padding:3px 6px;cursor:pointer}
+.ca-mini:hover{border-color:var(--rule);color:var(--parchment)}
+.ca-mini.ok{color:var(--kelp)}
 
 table{width:100%;border-collapse:collapse;font-family:var(--font-data);font-size:13px;font-variant-numeric:tabular-nums}
 th{font-weight:400;text-align:left;color:var(--parchment-dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:0 8px 8px 0;border-bottom:1px solid var(--rule)}
@@ -242,7 +250,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
     <p class="sub">Ships launched in this window, by volume.</p>
     <div class="panel tablewrap">
       <table>
-        <thead><tr><th>Ship</th><th>Status</th><th class="r">Volume</th><th class="r">In curve</th><th class="r">Sharks</th><th class="r">Age</th></tr></thead>
+        <thead><tr><th>Ship</th><th>CA</th><th>Status</th><th class="r">Volume</th><th class="r">In curve</th><th class="r">Sharks</th><th class="r">Age</th></tr></thead>
         <tbody id="fleet" class="click"></tbody>
       </table>
     </div>
@@ -982,7 +990,7 @@ cv.addEventListener("mousemove", e => {
   const r = cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top; const s = nearest(mx,my);
   S.hover = s; const tip = $("tip");
   if (s){ tip.style.display="block"; tip.style.left = mx+"px"; tip.style.top=my+"px";
-    tip.innerHTML = `${esc(s.sym)} · ${fmt(s.vol)} ETH · ${stateName[s.state]}${s.sharks.size?` · ${s.sharks.size} shark${s.sharks.size>1?"s":""}`:""}`; cv.style.cursor="pointer"; }
+    tip.innerHTML = `${esc(s.sym)} · ${short(s.token)} · ${fmt(s.vol)} ETH · ${stateName[s.state]}${s.sharks.size?` · ${s.sharks.size} shark${s.sharks.size>1?"s":""}`:""}`; cv.style.cursor="pointer"; }
   else if (overLighthouse(mx,my)){ tip.style.display="block"; tip.style.left = mx+"px"; tip.style.top=my+"px"; tip.textContent = S.lh.ship ? `$WRECK lighthouse · ${fmt(S.lh.ship.vol)} ETH traded` : "$WRECK lighthouse · not lit yet"; cv.style.cursor="help"; }
   else { tip.style.display="none"; cv.style.cursor="crosshair"; }
 });
@@ -1050,6 +1058,7 @@ function shipCard(s){
   return `
     <div class="nm">${esc(s.sym||"?")}</div><span class="state st-${s.state}">${stateName[s.state]}</span>
     <div class="full">${esc(s.name||"")}${s.flagship?" · the lighthouse token":""}</div>
+    <div class="ca-row"><button class="ca-btn" type="button" data-copy="${s.token}" title="Copy contract address"><span class="lbl">CA</span>${s.token}</button></div>
     <div class="facts">
       <div><b>${fmt(s.vol)}</b><span>ETH volume</span></div>
       <div><b>${fmt(s.inE,2)}/${fmt(s.outE,2)}</b><span>ETH in / out</span></div>
@@ -1120,7 +1129,7 @@ function renderBook(force){
   const fleet = [...visible].sort((a,b)=>b.vol-a.vol).slice(0,14);
   const col = {afloat:"var(--kelp)",sinking:"var(--shark)",wreck:"var(--parchment-dim)",graduated:"var(--brass)"};
   $("fleet").innerHTML = fleet.map(x=>`<tr data-i="${S.ships.indexOf(x)}" class="${x===S.selected&&!S.selShark?"sel":""}" tabindex="0">
-      <td>${x===S.tracked?"◉ ":""}${esc(x.sym||"?")}</td><td><span class="dot" style="background:${col[x.state]}"></span>${stateName[x.state]}</td>
+      <td>${x===S.tracked?"◉ ":""}${esc(x.sym||"?")}</td><td><button class="ca-mini" type="button" data-copy="${x.token}" title="Copy ${x.token}">${short(x.token)}</button></td><td><span class="dot" style="background:${col[x.state]}"></span>${stateName[x.state]}</td>
       <td class="r">${fmt(x.vol)}</td><td class="r">${fmt(x.net)}</td><td class="r ${x.sharks.size?"neg":""}">${x.sharks.size}</td><td class="r">${ago(S.t-x.t0)}</td></tr>`).join("");
 
   const sharks = [...S.traders.values()].filter(t=>t.bites.length).sort((a,b)=>b.bites.length-a.bites.length || b.inE-a.inE).slice(0,10);
@@ -1137,6 +1146,7 @@ function renderBook(force){
   $("graves").innerHTML = wrecks.length ? wrecks.map(s=>`<div class="grave" data-i="${S.ships.indexOf(s)}" tabindex="0" role="button" aria-label="Wreck of ${esc(s.sym)}">
       <small>Here lies</small><b>${esc(s.sym)}</b>
       <span class="ep">${epitaph(s)}</span>
+      <button class="ca-mini" type="button" data-copy="${s.token}" title="Copy ${s.token}">CA ${short(s.token)}</button>
       <span class="stats">${clockTxt(S.base+s.t0)} – ${clockTxt(S.base+s.wreckAt)} · ${fmt(s.vol)} ETH · ${s.sharks.size} shark${s.sharks.size===1?"":"s"}</span></div>`).join("")
     : `<p class="sub">No wrecks yet. Give it ten quiet minutes.</p>`;
 
@@ -1174,7 +1184,7 @@ function pumpNotices(){
   el.className = "notice k-"+n.kind;
   el.innerHTML = `<div class="nh"><span class="eb">${esc(n.eb)}</span><button class="x" type="button" aria-label="Dismiss">×</button></div>
     <b class="big${n.mono?" mono":""}">${esc(n.big)}</b>${n.line?`<p class="ln">${esc(n.line)}</p>`:""}${n.st?`<span class="st">${esc(n.st)}</span>`:""}
-    <div class="acts"><button type="button" class="go">${n.shark?"See the shark":"Show in the bay"}</button><button type="button" class="sh">Share</button></div>`;
+    <div class="acts"><button type="button" class="go">${n.shark?"See the shark":"Show in the bay"}</button>${n.ship?`<button type="button" class="ca-mini" data-copy="${n.ship.token}" title="Copy ${n.ship.token}">CA ${short(n.ship.token)}</button>`:""}<button type="button" class="sh">Share</button></div>`;
   box.prepend(el);
   let left = 9000, hover = false;
   el.addEventListener("mouseenter", ()=>hover=true); el.addEventListener("mouseleave", ()=>hover=false);
@@ -1233,6 +1243,18 @@ function openSharkPostcard(addr, st){
   $("modal").classList.add("open"); $("modalClose").focus();
   $("pcCopy").onclick = async () => { try{ const blob = await (await fetch(url)).blob(); await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]); $("pcCopy").textContent="Copied"; }catch(e){ $("pcCopy").textContent="Copy not allowed here"; } setTimeout(()=>$("pcCopy").textContent="Copy image",1800); };
 }
+
+/* ======================= copy contract address ======================= */
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-copy]"); if (!b) return;
+  e.stopPropagation(); e.preventDefault();
+  const v = b.dataset.copy, old = b.innerHTML;
+  let ok = false;
+  try { await navigator.clipboard.writeText(v); ok = true; }
+  catch(err){ try { const t = document.createElement("textarea"); t.value = v; t.style.position="fixed"; t.style.opacity="0"; document.body.appendChild(t); t.select(); ok = document.execCommand("copy"); t.remove(); } catch(e2){} }
+  b.classList.add("ok"); b.innerHTML = ok ? (b.classList.contains("ca-btn") ? '<span class="lbl">CA</span>Copied' : "Copied") : "Select and copy";
+  setTimeout(()=>{ b.classList.remove("ok"); b.innerHTML = old; }, 1400);
+}, true);
 
 /* ======================= postcards ======================= */
 function openPostcard(s){
