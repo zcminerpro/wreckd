@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipwreck Bay</title>
+<meta name="description" content="A live cross-section of the Pons launchpad on Robinhood Chain. Every launch sets sail, silence sinks it, and the sharks are the snipers.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one dark nautical world. A full-bleed cross-section of the bay, a helm bar of controls,
+   then a ship's logbook: selected ship or shark, the log, the registers, the graveyard. */
+:root{
+  --abyss:#060d13;
+  --sea:#0d2230;
+  --parchment:#e9e0c8;
+  --parchment-dim:#a79f8a;
+  --brass:#c9a24a;
+  --shark:#d65a3c;
+  --kelp:#79b394;
+  --rule:rgba(233,224,200,.14);
+  --font-display:"IM Fell English SC","Iowan Old Style",Georgia,serif;
+  --font-body:"IM Fell English","Iowan Old Style",Georgia,serif;
+  --font-data:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--abyss);color:var(--parchment)}
+body{font-family:var(--font-body);font-size:17px;line-height:1.5}
+a{color:var(--brass)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.mono{font-family:var(--font-data);font-variant-numeric:tabular-nums}
+
+/* ---------- the bay ---------- */
+.bay{position:relative;height:min(74vh,720px);min-height:480px;overflow:hidden;background:var(--sea)}
+.bay canvas{display:block;width:100%;height:100%;cursor:crosshair}
+.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:20px clamp(16px,3vw,36px)}
+.hud-row{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap}
+.brand h1{font-family:var(--font-display);font-weight:400;font-size:clamp(34px,5.2vw,64px);line-height:.95;margin:0;letter-spacing:.01em;text-wrap:balance;text-shadow:0 2px 18px rgba(0,0,0,.6)}
+.brand p{margin:10px 0 0;max-width:34ch;font-style:italic;color:var(--parchment-dim);font-size:clamp(15px,1.5vw,18px);text-shadow:0 1px 10px rgba(0,0,0,.8)}
+.status{display:flex;flex-direction:column;align-items:flex-end;gap:10px;margin-right:clamp(60px,8vw,110px)}
+.pill{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-data);font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border:1px solid var(--rule);background:rgba(6,13,19,.55);backdrop-filter:blur(4px)}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--kelp);box-shadow:0 0 10px var(--kelp)}
+.pill.replay i{background:var(--brass);box-shadow:0 0 10px var(--brass)}
+.pill.err i{background:var(--shark);box-shadow:none}
+.clock{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);text-align:right;text-shadow:0 1px 6px #000}
+.tally{display:flex;gap:clamp(14px,3vw,40px);flex-wrap:wrap;align-items:flex-end}
+.tally div{display:flex;flex-direction:column}
+.tally b{font-family:var(--font-data);font-weight:500;font-size:clamp(20px,2.4vw,30px);font-variant-numeric:tabular-nums;text-shadow:0 1px 10px rgba(0,0,0,.8)}
+.tally span{font-family:var(--font-data);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--parchment-dim)}
+.tally .sh b{color:var(--shark)}
+.tally .gr b{color:var(--brass)}
+.tally .wx b{font-family:var(--font-display);font-weight:400}
+.legend{font-family:var(--font-data);font-size:11px;color:var(--parchment-dim);display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end}
+.legend em{font-style:normal;color:var(--parchment)}
+.tip{position:absolute;pointer-events:none;font-family:var(--font-data);font-size:12px;background:rgba(6,13,19,.9);border:1px solid var(--rule);padding:8px 10px;white-space:nowrap;transform:translate(-50%,-115%);display:none}
+
+/* ---------- helm bar ---------- */
+.helm{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;padding:12px clamp(16px,3vw,36px);border-bottom:1px solid var(--rule);background:#08131b;font-family:var(--font-data);font-size:12px}
+.helm label{color:var(--parchment-dim);text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+.spy{display:flex;gap:8px;align-items:center;flex:1 1 320px}
+.spy input{flex:1;min-width:0;background:transparent;border:1px solid var(--rule);color:var(--parchment);font:inherit;padding:7px 10px}
+.spy input::placeholder{color:#6f6a5d}
+.hbtn{font-family:var(--font-data);font-size:12px;letter-spacing:.05em;padding:7px 10px;border:1px solid var(--rule);background:transparent;color:var(--parchment);cursor:pointer}
+.hbtn:hover{border-color:var(--parchment-dim)}
+.hbtn[aria-pressed="true"]{border-color:var(--brass);color:var(--brass)}
+.time{display:flex;gap:8px;align-items:center;flex:2 1 420px}
+.time input[type=range]{flex:1;accent-color:var(--brass);min-width:120px}
+.spymsg{color:var(--parchment-dim);font-size:11px;min-height:1em}
+
+/* ---------- logbook ---------- */
+.book{max-width:1240px;margin:0 auto;padding:40px clamp(16px,3vw,36px) 72px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:36px 40px}
+@media (max-width:900px){.book{grid-template-columns:1fr}}
+section h2{font-family:var(--font-display);font-weight:400;font-size:26px;margin:0 0 4px;text-wrap:balance}
+section .sub{margin:0 0 14px;color:var(--parchment-dim);font-style:italic;font-size:15px}
+.panel{border-top:1px solid var(--rule);padding-top:18px}
+.wide{grid-column:1/-1}
+
+.card{display:grid;grid-template-columns:1fr auto;gap:6px 16px;align-items:baseline}
+.card .nm{font-family:var(--font-display);font-size:34px;line-height:1;word-break:break-word}
+.card .full{grid-column:1/-1;color:var(--parchment-dim);font-style:italic}
+.facts{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
+@media (max-width:520px){.facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.facts div{display:flex;flex-direction:column;border-left:1px solid var(--rule);padding-left:10px}
+.facts b{font-family:var(--font-data);font-weight:500;font-size:18px;font-variant-numeric:tabular-nums}
+.facts span{font-family:var(--font-data);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--parchment-dim)}
+.prog{grid-column:1/-1;margin-top:14px}
+.prog .bar{height:8px;background:rgba(233,224,200,.08);position:relative}
+.prog .bar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--parchment-dim),var(--brass))}
+.prog .lbl{display:flex;justify-content:space-between;font-family:var(--font-data);font-size:11px;color:var(--parchment-dim);margin-top:6px}
+.links{grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-family:var(--font-data);font-size:13px;align-items:center}
+.state{font-family:var(--font-data);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border:1px solid currentColor;justify-self:end}
+.st-afloat{color:var(--kelp)}.st-sinking{color:var(--shark)}.st-wreck{color:var(--parchment-dim)}.st-graduated{color:var(--brass)}.st-shark{color:var(--shark)}
+.dossier{grid-column:1/-1;margin-top:14px;border:1px solid var(--rule);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.dossier h3{margin:0;font-family:var(--font-display);font-weight:400;font-size:18px}
+.dossier p{margin:0;font-size:15px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-family:var(--font-data);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border:1px solid var(--rule);color:var(--parchment-dim)}
+.chip.bad{border-color:var(--shark);color:var(--shark)}
+.chip.good{border-color:var(--kelp);color:var(--kelp)}
+.chip.warn{border-color:var(--brass);color:var(--brass)}
+.bites{grid-column:1/-1;margin-top:12px}
+
+table{width:100%;border-collapse:collapse;font-family:var(--font-data);font-size:13px;font-variant-numeric:tabular-nums}
+th{font-weight:400;text-align:left;color:var(--parchment-dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:0 8px 8px 0;border-bottom:1px solid var(--rule)}
+td{padding:8px 8px 8px 0;border-bottom:1px solid var(--rule);vertical-align:baseline}
+td.r,th.r{text-align:right}
+tbody.click tr{cursor:pointer}
+tbody.click tr:hover td{background:rgba(233,224,200,.04)}
+tbody tr.sel td{background:rgba(201,162,74,.10)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:8px;vertical-align:middle}
+.tablewrap{overflow-x:auto}
+.pos{color:var(--kelp)}.neg{color:var(--shark)}
+
+.log{list-style:none;margin:0;padding:0;font-family:var(--font-data);font-size:13px;max-height:360px;overflow:auto}
+.log li{display:grid;grid-template-columns:48px 96px 1fr;gap:10px;padding:7px 0;border-bottom:1px solid var(--rule)}
+.log li.mine{background:rgba(201,162,74,.08)}
+.log time{color:var(--parchment-dim)}
+.tag{font-size:10px;letter-spacing:.1em;text-transform:uppercase;align-self:center;justify-self:start;padding:2px 6px;border:1px solid currentColor}
+.t-launch{color:var(--parchment)}.t-snipe{color:var(--shark)}.t-sank{color:var(--parchment-dim)}.t-grad{color:var(--brass)}.t-salvage{color:var(--kelp)}.t-light{color:var(--brass)}
+
+.graves{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}
+.grave{border:1px solid var(--rule);border-radius:90px 90px 4px 4px;padding:30px 18px 18px;text-align:center;background:linear-gradient(#0c1820,#08121a);cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.grave:hover{border-color:var(--parchment-dim)}
+.grave small{font-family:var(--font-data);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--parchment-dim)}
+.grave b{font-family:var(--font-display);font-weight:400;font-size:24px;line-height:1.05;word-break:break-word}
+.grave .ep{font-style:italic;color:var(--parchment-dim);font-size:15px}
+.grave .stats{font-family:var(--font-data);font-size:11px;color:var(--parchment-dim);border-top:1px solid var(--rule);padding-top:8px;margin-top:4px}
+
+.about{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px 40px}
+@media (max-width:900px){.about{grid-template-columns:1fr}}
+.about p{max-width:62ch;margin:0 0 12px}
+.key{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:16px}
+.key dt{font-family:var(--font-data);font-size:12px;color:var(--brass);text-transform:uppercase;letter-spacing:.08em;padding-top:3px}
+.key dd{margin:0}
+.token{border:1px solid var(--rule);padding:18px;display:flex;flex-direction:column;gap:10px}
+.token .ca{font-family:var(--font-data);font-size:13px;word-break:break-all;color:var(--parchment-dim)}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.btn{font-family:var(--font-data);font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:9px 14px;border:1px solid var(--brass);color:var(--brass);background:transparent;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.solid{background:var(--brass);color:var(--abyss)}
+.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
+footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);border-top:1px solid var(--rule);padding-top:16px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+/* ---------- postcard dialog ---------- */
+.modal{position:fixed;inset:0;background:rgba(3,7,10,.82);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+.modal.open{display:flex}
+.modal .box{background:#0a161e;border:1px solid var(--rule);max-width:880px;width:100%;padding:18px;display:flex;flex-direction:column;gap:12px}
+.modal img{width:100%;height:auto;display:block;border:1px solid var(--rule)}
+.modal .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.modal .hint{font-family:var(--font-data);font-size:11px;color:var(--parchment-dim)}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<div class="bay" id="bay">
+  <canvas id="sea" aria-label="Animated cross-section of the bay. Ships are new Pons tokens; the same data is listed in the registers below."></canvas>
+  <div class="hud">
+    <div class="hud-row">
+      <div class="brand">
+        <h1>Shipwreck Bay</h1>
+        <p>Every Pons launch sets sail. Most of them sink. The sharks bite in the first three seconds.</p>
+      </div>
+      <div class="status">
+        <span class="pill" id="mode"><i></i><span id="modeTxt">Connecting to Robinhood Chain…</span></span>
+        <div class="clock" id="clock">&nbsp;</div>
+      </div>
+    </div>
+    <div class="hud-row">
+      <div class="tally">
+        <div><b id="nAfloat">0</b><span>afloat</span></div>
+        <div><b id="nWreck">0</b><span>on the seabed</span></div>
+        <div class="gr"><b id="nGrad">0</b><span>graduated</span></div>
+        <div class="sh"><b id="nShark">0</b><span>sharks seen</span></div>
+        <div><b id="nVol">0.00</b><span>ETH traded</span></div>
+        <div class="wx"><b id="wx">Calm</b><span id="wxSub">sea state</span></div>
+      </div>
+      <div class="legend">
+        <span><em>Sail</em> grows with volume</span>
+        <span><em>10 min</em> of silence sinks a ship</span>
+        <span><em>4.2 ETH</em> in the curve graduates it</span>
+      </div>
+    </div>
+  </div>
+  <div class="tip" id="tip"></div>
+</div>
+
+<div class="helm">
+  <form class="spy" id="spyForm" autocomplete="off">
+    <label for="spyIn">Spyglass</label>
+    <input id="spyIn" type="text" placeholder="Token address or ticker, e.g. EZRA" aria-describedby="spyMsg">
+    <button class="hbtn" type="submit">Find</button>
+    <button class="hbtn" type="button" id="spyClear">Clear</button>
+  </form>
+  <div class="time" id="timeCtl">
+    <label for="scrub">Tide</label>
+    <input type="range" id="scrub" min="0" max="100" value="0" step="1">
+    <button class="hbtn" type="button" data-speed="0" aria-pressed="false">Pause</button>
+    <button class="hbtn" type="button" data-speed="1" aria-pressed="false">×1</button>
+    <button class="hbtn" type="button" data-speed="20" aria-pressed="true">×20</button>
+    <button class="hbtn" type="button" data-speed="60" aria-pressed="false">×60</button>
+  </div>
+  <button class="hbtn" type="button" id="sound" aria-pressed="false">Sound off</button>
+  <div class="spymsg" id="spyMsg" role="status"></div>
+</div>
+
+<main class="book">
+  <section>
+    <h2 id="cardTitle">The selected ship</h2>
+    <p class="sub" id="cardSub">Click any ship in the bay, any row in a register, or a gravestone.</p>
+    <div class="panel"><div class="card" id="card"></div></div>
+  </section>
+
+  <section>
+    <h2>Ship's log</h2>
+    <p class="sub">Launches, shark bites, sinkings, graduations and the lighthouse.</p>
+    <div class="panel"><ul class="log" id="log"></ul></div>
+  </section>
+
+  <section>
+    <h2>Fleet register</h2>
+    <p class="sub">Ships launched in this window, by volume.</p>
+    <div class="panel tablewrap">
+      <table>
+        <thead><tr><th>Ship</th><th>Status</th><th class="r">Volume</th><th class="r">In curve</th><th class="r">Sharks</th><th class="r">Age</th></tr></thead>
+        <tbody id="fleet" class="click"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Shark register</h2>
+    <p class="sub">Wallets that bought within three seconds of a launch. Click one for its profile.</p>
+    <div class="panel tablewrap">
+      <table>
+        <thead><tr><th>Shark</th><th class="r">Bites</th><th class="r">Bitten</th><th class="r">Taken out</th><th class="r">Result</th></tr></thead>
+        <tbody id="sharks" class="click"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="wide">
+    <h2>The graveyard</h2>
+    <p class="sub">The loudest wrecks of this watch. Click a stone to raise the ship's papers.</p>
+    <div class="panel"><div class="graves" id="graves"></div></div>
+  </section>
+
+  <div class="about wide">
+    <section>
+      <h2>How to read the bay</h2>
+      <p>Shipwreck Bay listens to the Pons launch factory on Robinhood Chain (chain 4663). Every new token appears as a ship. Each buy fills its sail, each sell lets wind out of it, and when nobody trades for ten minutes the ship takes on water and settles on the seabed, where you can still inspect what it carried.</p>
+      <p>A ship whose bonding curve holds 4.2 ETH graduates to a DEX and sails off with brass sails. Wallets that buy within three seconds of a launch are drawn as sharks. The weather follows the whole launchpad: a burst of volume brings a storm, a dead hour brings fog. Every ship has a captain, the wallet that launched it, and the captain's dossier shows whether they have launched before and whether they sold their own ship.</p>
+      <dl class="key">
+        <dt>Read-only</dt><dd>No wallet connection, no keys, no transactions. Everything comes from the public Robinhood Chain RPC.</dd>
+        <dt>Not advice</dt><dd>A ship afloat is not a recommendation. Most launches sink.</dd>
+      </dl>
+    </section>
+    <aside class="token" id="tokenBox">
+      <h2>$WRECK</h2>
+      <p>The bay's own community token on Pons. Every $WRECK buy flashes the lighthouse on the cliff, and its beam grows with the last hour of trading. It funds the lighthouse: keeping the RPC feed running and adding the next rooms of the bay.</p>
+      <div class="ca" id="ca">The lighthouse is not lit yet. The contract address appears here after launch.</div>
+      <div class="btns">
+        <button class="btn" id="copyCa" type="button" aria-disabled="true">Copy CA</button>
+        <a class="btn solid" id="buyPons" href="#" aria-disabled="true">Buy on Pons</a>
+        <a class="btn" id="xLink" href="#" aria-disabled="true">X</a>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="wide">
+    <span>Shipwreck Bay · data from Robinhood Chain RPC · Pons launchpad</span>
+    <span id="foot">&nbsp;</span>
+  </footer>
+</main>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="box">
+    <div class="row"><h2 id="modalTitle" style="margin:0;font-family:var(--font-display);font-weight:400">Postcard from the bay</h2><button class="hbtn" type="button" id="modalClose">Close</button></div>
+    <img id="pcImg" alt="Postcard of the selected ship">
+    <div class="row">
+      <div class="btns">
+        <button class="btn" type="button" id="pcCopy">Copy image</button>
+        <a class="btn" id="pcDl" download="shipwreck-bay.png" href="#">Download PNG</a>
+        <a class="btn solid" id="pcX" href="#" target="_blank" rel="noopener">Post on X</a>
+      </div>
+      <span class="hint" id="pcHint">Attach the image to your post.</span>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="snapshot">{"from":1794917343,"to":1794921042,"tokens":[["THESIS","Thesis","1cc919f2f17c3a10c0cb801a8a467d2a6b37a23d",96,"891570350162df6d1a1f59ed5c4da5a92cd0ccc2",1,0.0,0.0],["SOYOUARE","Justice For So You Are","5f14243e40952e9201ae3ec959da59fa99221486",96,"4236d541369351cbe645eda9eaecd3c2dc9b95e3",1,0.357,0.35],["HALBROOK","Halbrook","d822427a3f838e313b63d64b211bddbeb705c929",133,"0657b19754e02e2b720e1f49a092c863173192a3",1,0.069,0.05],["SOYOUARE","Justice For So You Are","3cac02c0d8ccfd0132eb345087b4d1a73dc44044",191,"9165f5d8ee101e13aff2304c4cc1933e72d0ef31",1,0.459,0.45],["MOKO","moko","cf19d80b30b391b13cc7a2a7dedf8bdc92668f0e",203,"a56312b3a76888857ca6fed0b954bce2cf7e5cc0",1,0.0,0.02],["RHEON","RHEON","3a26cea22bffb62cb2102edc1cfafba76cb839d0",269,"7896b5d094d2bb8b13e28d8f5133b18497706d98",1,0.0,0.02],["MEYLIN","Meylin Markets","4d2597c53b436a969dbf3e02e8d929f69faab243",271,"fa2f7fdde3131e9acfd35632fd6b627fb9ec38d5",1,0.038,0.04],["SOYOUARE","Justice For So You Are","78c61f08d0c99c01208deb3cda2676bb0f2fd9ad",291,"e46eb83c69275fcf15adbce3ab888b42d4029983",1,0.459,0.45],["PERP","Perpscore","d2b0593176a53b5575454b7097bbd0e083e12509",333,"4e6a0929c673728941eaafb6ed0284ffbd3d3648",1,0.24,0.26],["SOYOUARE","Justice For So You Are","46db00fb752a009bca8bdec6b6f040f5cd32921d",358,"2e01331c77cf5893bcf1ac8b3050fb7207fd8816",1,0.505,0.5],["THESIS","Thesis Protocol","0476942194d4ba9fdcf673260fd43ded72652a20",446,"2c5fd03da830fef5c5aa704741bc071ae5456ae5",1,1.693,1.0],["SOYOUARE","Justice For So You Are","3c67f269a228950526bc9dbf5dc5eed9f7282a0a",469,"a12bfb622f8057c6a6625bec00351c070a9ed05e",1,0.36,0.35],["POA","Proof Of Agent Robinho","eb27b90e3944ccf19c521e156392b35027c0f7d1",513,"c5389dc3757d4a05b76b256836662b9229e8be60",1,0.0,0.015],["FORA","FORAGENT","d2fab954b30c29cb6fc1b94f5c7b9cf4dff7dccb",527,"b8ca6d20eaa67bc1e8d2c223854ef169300c20d9",1,0.0,0.018],["SOYOUARE","Justice For So You Are","12d5d6f64cece14384ee8f055a0fdd95e17e3ce1",529,"36fb5932b4413fc3ce4a4c3b5d8e6faa9aef37cb",1,0.393,0.38],["FRG","Feather Games","ccb749a634402523b7e2e098be86e7bc03db62a2",613,"40e2405a89b47e645ad5024930f52c3d546ddffc",1,0.0,0.015],["LAWNGNOME","LAWNGNOME","4582786ecf7fd8f7b55b296d3749af1b312fca28",638,"7c05724a8e0d350d7e9fee3e1c6d59dc33cd102b",1,0.0,0.0],["EZRA","Ezra Agent","1c913bf9d429633cd7bfffc44691fd5a6e23d2c4",651,"11eac00c67e5444aa3cb0fa48ce1a4b569549aac",1,0.0,0.05],["TAPE","Stable Tape","5a02cc1f0b93b36889c20578169f1b50c181d222",678,"cd4b405d010b7a214cbea6c01c83d27559d090f1",1,0.0,0.01],["FAILED","Mission Failed","470215bdbacfad48d4cfcadfe082d93de8b10994",732,"b15a1aa26ef9645309a8a5eeef3fd1b86461cd7f",1,0.449,0.4],["HYPNOS","Hypnos","cc07710dc09c244e93d5d5605eaad8e09fa5e5cb",803,"ba1fafa138a3fd07975bb0fbb6c2307ac7ac7808",1,0.0,0.01],["TOOLHOOD","Toolhood","b0144e856172aa4f18db4fea196fb98da5b00bc4",844,"0cf26921c466ad985822590c5fc9481608c5c076",1,0.008,0.008],["FAILED","Mission Failed","7f9e288ebcf98cd88c28b7fffaf6948b630f7182",861,"87e80ca30bcae766802a3e5b60373f2996b2fcd7",1,0.491,0.4],["MEMESIFT","MemeSift","7455232c368bafac4dc2aeace0aa551d5b80e95b",868,"8a9926655722507fe02ee4ad9ed69863797fbbbf",1,0.056,0.055],["HUMAI","Humix AI","b2e4f71921eeb8841c38a73ac0f0393476a1dbd5",944,"fd021fd2ff2f6f05ab2e83936fc84a87ea4350f2",1,0.0,0.05],["PANKO","Panko","aa4d5cc3dccd64002ed8af396279a644f1cc6b67",955,"c5e6d54124a683812d773a9977b1c1119d31f47b",1,0.0,1.0],["RYCORE","Rycore","4a439e090e37f94b0d2508a07e0c74e131c1372a",1020,"444fe73e59903cf296f68b64817ca2aac25f1cd2",1,0.06,0.025],["VOLUND","Volund","46230f43c3579300e4ea641c96819b82c5f5d451",1137,"1c6cbb9a4d86d3589f1a2a588598b0448e61015a",1,0.0,0.006],["SHAREITY","Shareity","644871bd2553b9849e9ec5483c9d180a6e8ee3b8",1259,"5324db1e451504c5d0430ca4ceb0e604f5f6ffb3",1,0.0,0.014],["USETRAWSN","UseTrawsn","7144fd3b360ef016c63937d5f211095ecb447d44",1299,"f005b684affa406ffcb2d5be84b8a05c49d68c75",1,0.0,0.01],["XHADE","Xhade","1ceb5230c2996d2bf39dd07da95ac6d1891616e1",1343,"12062892bde7d2d09bf110a95b6df8e831a22b20",1,0.019,0.02],["USETRAWSN","UseTrawsn","e2c71e76bc739ed178071b853f1f1e97abe6731f",1397,"c8943d20282debe46b77159c4b78fd5e718da82b",1,0.196,0.15],["QUANLET","Quanlet","d946d72fcb8f098934bf6afd68e363cb0c518a0a",1466,"33c794cad05e69c62647833d5793c58765397efa",1,0.018,0.019],["ASI","American Super Inu","90853ad34c70443e47a58a9de60a5667374efa3b",1531,"9531112b27a408be1a8ba0822ac598f15fa46a88",1,0.066,0.065],["TOK","TokEdge","e1afc4ec8b800e02813f7731d76ab8bf5a0eeaeb",1632,"c877e5e80c64643f7e8979de8d4c2a666e2888b9",1,0.0,0.015],["CUA","AgentCua","8d9ccfe9cebe5adcd44b7c38bee2428d01cb333e",1636,"105d46ebeae5993d68dd12e6de395b979b0a6c8f",1,0.0,0.045],["GOTH","Guns Of The Hood","24d76d62da07de0352caef68974955f3e9133a47",1640,"32476f15797148d14b3fb9260a320987acd5f467",1,0.031,0.033],["CUA","AgentCua","719be95af049c799ac773037885f5d918802f566",1664,"d50e9e699b99a72457fa34b8d2a15c47445910f2",1,0.194,0.16],["Grokia","Grokia","135d835b9ce2c63065a8285d37b982335aa37128",1801,"935bbbd07ea8199f7e1c482ed14f2194e05d7381",1,0.0,0.1],["Grokia","Grokia","fdb7819ee1d6a2a727d9270d4be774643371d807",1903,"30f7cf907deee870022c6335a1c8553dee16aa7e",1,0.051,0.05],["ATUR","Atur","8f4ec897e7f0a0caee7f835b755382c47d7bef7c",1936,"7cab1b896755d4d4ffc25eb8eac519844f9c848a",1,0.042,0.045],["TANGO","tango","529eda7a38c6cd589c526cefbe76c050c0861595",1957,"032d2aca967c765c065a11aad0ff1eb45fc1eacc",1,0.0,0.013],["L7","l7exchange","f5c94c82f50b4144d1f89e79df269a24e6854373",1979,"e93a791db56c80864d87845aef3af427128f0341",1,0.0,0.014],["MOKO","Moko","4cb705936e017f1bd8b2108830511ec153e23fce",2065,"050fabd50c4b8d6862844188ba548a1acb252843",1,0.009,0.01],["FLUXAMPAI","fluxampAI","f68904c01e77512eec2eedf79318b222ebb2e6ff",2098,"f4bd5f186d828547a7047bbe1140f18bf0781e06",1,0.0,0.01],["ALCOVE","Alcove","6875b6109a47247786f506a25dd6922aab35257a",2121,"f470a62de034d241a45af5099163023a23bab694",1,0.0,0.015],["VERMYX","Vermyx","df2e687ed5e69ca4d934ba5c1a43f19531687190",2129,"3285a835d066243fe5aa93527e5412a43d96868d",null,null,null],["SPURPIT","SPUR Pit","8ea268195f357e6c48432d105f51820180742077",2145,"d8aa74f808662fda2c6a79eca97072db41063f3b",1,0.0,0.045],["CLADE","Clade","cf5140372fcad8bc595d32f36035ade433bc8dca",2274,"6de86073304e5a0cc1646bbba9dff725240a0924",1,0.033,0.035],["NILLY","nilly","658ff01962a00cd610ddb07f2390c99b8a9f6cad",2342,"ff7bad9b3cf18963fc437156af696e720b2202b4",1,0.035,0.035],["SBRC","SBRC","1d59a800ccc4c76c64f7f28130b82e96fb33641c",2379,"a6b4f1212e0b7fd56663cfd433ba63ff7c585cc2",1,0.0,0.01],["GOVR","Governor","58c8dcb2a02751c7754d971e5d458ed21cc52b9e",2441,"3378d594f9d9d0a75275ba2cbf1a510811d8b772",1,0.0,0.0],["POOLZ","Poolz Pad","7978eff730cb04a92c5cd804fc5e0208c6fc3a1d",2443,"317bfc0de05a552071c28a2145d833db5b3e48b9",1,0.03,0.03],["ILP","Interlude Protocol","9fa2f7774940a38c2787610a22f512a2bdfb9657",2466,"8b67ece47c1162e9af1885434b3c42bee665d98a",1,0.0,0.02],["DRAFTAZO","Draftazo","98bade1df9431daf99ed1b97eeebd4536d31b727",2473,"c58babe2691f08bfe970dccf86c8d7ffffd1a89b",1,0.054,0.057],["LYDITE","Lydite","104cbc93f15150267dfd639e6aadc618972e381b",2571,"08aa68a12adbd70ebd023522888ca42e1803010e",1,0.023,0.025],["DRAFTAZO","Draftazo","62fec800deb5bfe2d368e67bc85e82139d0f0f69",2576,"0e9a1b85d2800c3b56632f0c316be7f824e7eb25",1,0.103,0.08],["LUSTRINE","Lustrine","6e5dde455d4a0463512c77fd510dfe6133230c63",2617,"4c3d38ab729f0f7427932c36346dd4131478383d",1,0.043,0.045],["EZRA","EZRA","92d1c5d5e32538924c5fedde2ea840b6c94933b7",2619,"17e561529fc7e35164e7f62c28664e3a31f57ad9",1,0.0,0.03],["ZYRON","Zyron Mine","8a3dd1908eec69dfdcfed91facf7bd43c655862b",2630,"4554940fc224b1821cb5fc4ae8310eaf2775c443",null,null,null],["PALISEC","Palisec","00cd264de2884c3477d0a31e41924af72330efae",2677,"a25d59f346be84b3a6cf781603dc7df2600df88c",1,0.024,0.025],["SOA","Swapora","eeb5e5cf1862a65d4f1f3493da463568d6f11301",2747,"cbcc404808141a9258336f816eb18dc2c08590c8",1,0.0,0.02],["TROYA","TROYA","6df6c18995ff3f714522bf4eb23692143e195b53",2844,"4fec3a1fc6e95b6c844eca5a23f00d7c82c6625a",1,0.0,0.077],["FORA","Fora","713c248a6fb2ca3559d149fe46354865b46dc0aa",2867,"f2db593b1ed13aec80cace680fd51e2e9d8e32d8",1,0.0,0.025],["EZRA","EZRA","ba66bf03b6139478e4416e29e41c8bd6effde885",2876,"88a870b2c988982c614880e53f80a22c02579ed4",1,0.112,0.09],["HYPNOS","Hypnos","79ed9dd52755b7296d3b39be891446c54297b772",2877,"2c9f0cebf4a6fe5ab3cab8d85b700323fd913acf",1,0.024,0.025],["MORPHIC","Morphic","c4ac2bc0e371ba28d7a1c8610084d917f70f82c2",3046,"c565615986a4e2fa7286cfb446e6a416b79ede3d",1,0.0,0.03],["FORTIS","FortisAgent","b652c9420aa04be1c03b0680e46e0ceba0ecf34f",3055,"6296a1b2ac047c065fca046478c7c6a2f9c39d8f",1,0.0,0.04],["EZRA","Ezra Agent","0fe4df86d7b46e4cb762873c12a083e7dcc483cd",3085,"3d4cb0b9c5603e9771fd3a12eccd96160df34d9f",1,0.0,0.024],["EZRA","Ezra Agent","4b7c1ce5b15c2c9b5b29c76ee541ccaf470b19bc",3099,"f670a24d4a541656b6c45ffbd94d267eb3dbf1df",1,0.048,0.05],["LEVRIX","levrix","7d5b3db2f59389d18f47a2a4b891262a935e1ca0",3101,"00069f24907ac777822e14e47a29add5783bc754",1,0.014,0.015],["BAWSAQ","Bawsaq","47769f0c3871334f01906d40466f6a5c29da73da",3127,"ba61b42954cf1e229623c7a3a50697235f05fec1",1,0.009,0.009],["ELITE","Elite Agent","191f8925673a9d4392902e03c8771833d0cf2913",3188,"1bd342390ea70b7ecc231e77c330d2963e59aaf9",1,0.014,0.015],["LEVRIX","levrix","b8c3f8f5dbe617463548306c58be0288ecf1e265",3229,"498a45b3944f5e843db88b874b746a0e000e0a22",1,0.014,0.015],["KNITTEN","Knitten Knight","b387f54dd91a3b553458daab2137396567443f70",3300,"c846dbd6edc318f325771977cf0bd0028a790884",1,0.016,0.055],["WIF","World is Flat","4a705ac34a79b00956f89f9fcf0615c02b240129",3380,"acc7590a802486a5143c8dfb36572fdc6864d2d2",1,0.024,0.025]],"traders":["e4a727d2cca580d95e52d55930f6aac12ec61075","ff335b2c27f66910e67808382de6a1fd2389321d","92475293e578c7d88651d160d2b0e45e04e4528b","97de4e59cbdffc56dff178caf029cfacd3f32e7c","46e4a4b216f315b3388cf1d18e8a938d7e9f18b5","8de05263da88542392473638faee8afce3d57f64","82ea5475f28e297eaaecebf413f5e41cdda35c36","f2b42ea9677209112af588d1d045a63def8913a2","843a2a32ca590808a5fa846c0e8050bda8ed1495","5136067ccc0065c20ac16cd7191d08564e19d71e","2abdd72b5bb40ba0df894d33d40aee918da551ae","d5151aff42608d479c07a6f453f6e53996a90d38","7555b7ddfdcae1b2a72e45416ea0988d018c37ca","f4d0b74de896b3b666369fd738c0f6d034cd7e92","ac757bc1d880fd3e5da15890ac6e394922358371","e1cf0a2eeae83c2347ce41b9527a33fee3699ec6","32f0253d57d33a46cb0e974dfc33d104c307fdcc","2a68a54eebba46096bd188e00981a00dd48e14cf","9a3955a122ab8a649a8511df2dce169471fd0ec1","71ec26813e3c986e34ebcc6d333955be2334182f","840672e7760937d25c103866acd0ba931af39201","372dc8d96a0119bd2d52ac48ee41aebd1fd9c129","798730b1d50adac53d575df9e7c39a04394ec5bc","274169b62b089ffd0b8b182fae5348bcf9df3813","0ce70d8e509dc019f51de4ccc1026351adc4ca31","ef7a02b7043928393e056eaa4e4182fb4f73ad0c","17dcb7e012a9957e26f9948ff47fef6452aa59db","087a61e31e2020a7c3a8c0305420bae9fd41a546","42160026564d1cf2b5b4d37bbd4bc44bdd0f9e96","49ad9b245c943bc4460a15920cb3cae433e1480f","f8d2eda12921a1554478335c9b5c10ca0f5019bc","75d857e9a4b58c6b792b82e094d52c87c360e528","16fd923a0401d509e525be6c5902b97564405a68","e5f6f0b596197fb76f08fce581ecbb4aaf4fd05e","2a516e01301a5f4be5b30f3781cc58d227043aa1","2b779d0ea8cd3e40c4675cfd980038ffe5abc57a","19906acb3066a942cf6b6f66c192b748763bfbb8","50bb75b2f532ae57700f5308c77213dfb9ddbfbd","fbb2a4be681a63e6043deb8763a7cd773bc6f8fa","85611120f5451705d7a148af25eb728eb99287ef","c54d3914f91f984d61b63d491f38934c4e706b79","811e8c8fbc6bc65af99c20a4ef13f682404b5ddf","f66c8f01202356a4f02872328688ac06b82937f2","92d91b741a438747d4a349e9a02d718312cb93a7","cfde24e3613be14c837fa0ebe64fdd173712e73d","a3d49c92a06bad77a8fe2b50e33a5bc72b06b2fc","764acd38b0e6ffdeb641aa6077c286b0fd96490e","2de7d7c088e83967967fa40e58a86527dfb38102","080bd045705f82a240e7934f4ff2ada304fa2685","9d114272e6bc33bddc3a55aa7caf33ddbf244cb3","fdb24190288d95a756f48dcae08165f3055ea61a","240b820c74e5eedf5606503b33b495b16bdfd229","c8c624634ed5e9aac48baa622d29f52cbce5cf99","a5ee009b77857f10c73f7c8ebcac7ea014c0479c","c49c0a4b07b8bdc26352dec1130c6ef5cd8d8fc5","01155df8d44f684c4808ecd0203668e32acb063a","4b61ad9df9856dc96d8cbc10a6c621d367f23a02","60db2de98e42a8470ce44809f46cfe458b159356","2b578530ff7e866fb018e12e4f2bf7874ee4ebc0","09490718d42aaee5360890effc162aaa8063c58f","0a3095a00f537a5674b27ccad9b423c9f37feadb","dd5daf1ea89bb40a5da661707bde38f9a3c9ece5","f3dc0f2f261a175a89669b45e12efac62445b393","f915a401ceedcc97e7483fefb752269c7ed23a10","a2dbae1584afb18979e7c6357ac417a1eb2c7b85","10eb08e5635417619d2ebdf42604db16e0a3826e","73f6cc2b871710a9d749a86972889b50b106e035","5b8e11e3b122c2858d30968be23172874c8ff73b","844ae86c3b9b0ebc7e5b02f8f29bb6bbd4db9ec5","7cedc03f9f1e41b4c890120e0673af145c79cd7e","64dcbe9c346579777c04df23b65cdbd888f3c7b2","01ffa4c91badc34e2e7782b81a30bb8e5926edfc","4702851e5de2b47b78fd78e28ba11834367258eb","2173c947f738f04f96e8c793d9baac1f802fd43b","1981890c55a3a5efcf753519b1053febe451918e"],"snipes":"97,0,120,0;97,0,99,1;98,0,11,2;98,1,40,0;98,1,11,3;98,1,39,1;98,0,16,4;99,1,11,2;134,2,200,5;192,3,40,0;193,3,39,1;194,3,27,6;270,5,10,7;270,5,574,2;271,5,574,2;271,5,500,8;271,5,300,9;271,5,300,10;271,5,200,5;271,5,297,2;271,5,120,0;271,5,3,11;271,5,20,12;271,5,11,3;271,5,99,1;271,5,50,13;271,5,200,14;272,5,59,2;272,5,16,4;293,7,40,0;293,7,39,1;447,10,69,15;448,10,8,16;449,10,16,4;449,10,500,17;471,11,40,0;471,11,39,1;514,12,10,7;528,13,120,0;528,13,11,3;528,13,99,1;531,14,40,0;531,14,39,1;615,15,120,0;615,15,3,11;615,15,99,1;616,15,16,4;652,17,10,7;652,17,500,18;652,17,200,19;652,17,887,20;652,17,200,14;652,17,891,2;652,17,50,2;653,17,120,0;653,17,99,1;654,17,175,21;654,17,800,22;654,17,800,23;654,17,600,24;654,17,550,25;654,17,120,26;654,17,99,1;654,17,495,27;654,17,385,28;654,17,500,29;680,18,300,30;680,18,120,0;680,18,3,11;680,18,99,1;734,19,40,0;735,19,39,1;805,20,300,30;805,20,200,5;805,20,69,15;805,20,30,0;805,20,800,23;805,20,800,22;805,20,550,25;805,20,600,24;805,20,500,31;805,20,200,32;805,20,3,11;805,20,99,1;805,20,495,27;805,20,75,10;805,20,75,9;805,20,29,1;805,20,388,28;805,20,500,29;805,20,937,20;805,20,200,14;805,20,55,33;844,21,10,7;844,21,55,34;844,21,319,35;844,21,347,36;863,22,40,0;863,22,39,1;869,23,69,15;869,23,40,0;869,23,38,1;945,24,120,0;946,24,3,11;946,24,99,1;958,25,8,16;958,25,500,37;958,25,700,38;1022,26,120,0;1022,26,99,1;1137,27,200,18;1137,27,10,7;1137,27,852,20;1137,27,200,14;1138,27,50,2;1138,27,891,2;1138,27,120,0;1139,27,99,1;1139,27,11,2;1140,27,16,4;1140,27,100,39;1260,28,300,30;1260,28,3,11;1300,29,300,30;1300,29,800,22;1300,29,800,23;1300,29,600,24;1300,29,550,25;1300,29,200,32;1300,29,495,27;1300,29,99,1;1300,29,150,9;1300,29,150,10;1300,29,384,28;1300,29,500,29;1301,29,710,20;1301,29,200,14;1301,29,16,4;1399,31,40,0;1399,31,3,11;1399,31,11,3;1399,31,39,1;1399,31,11,2;1533,33,40,0;1533,33,3,11;1533,33,11,3;1533,33,300,30;1533,33,39,1;1634,34,120,0;1634,34,11,3;1634,34,99,1;1636,35,600,40;1638,35,1000,41;1638,35,250,21;1638,35,75,9;1638,35,150,10;1638,35,800,23;1638,35,800,22;1638,35,792,2;1638,35,607,42;1638,35,40,0;1638,35,550,25;1638,35,600,24;1638,35,200,32;1638,35,200,14;1638,35,495,27;1638,35,380,28;1638,35,99,1;1638,35,38,1;1638,35,500,29;1638,35,69,15;1638,35,856,20;1639,35,16,4;1666,37,40,0;1666,37,3,11;1666,37,39,1;1803,38,40,0;1803,38,3,11;1803,38,39,1;1905,39,300,30;1905,39,120,0;1905,39,3,11;1905,39,99,1;1958,41,500,18;1958,41,200,19;1958,41,767,20;1958,41,891,2;1958,41,200,14;1958,41,99,2;1959,41,120,0;1959,41,99,1;1960,41,10,43;1960,41,10,44;1960,41,16,4;1981,42,60,0;1981,42,3,11;1981,42,58,1;2066,43,82,45;2066,43,90,46;2066,43,94,47;2066,43,83,48;2066,43,62,35;2066,43,98,36;2066,43,74,49;2066,43,118,50;2066,43,137,51;2066,43,125,52;2066,43,68,53;2066,43,81,54;2066,43,126,55;2066,43,64,56;2066,43,55,34;2066,43,122,57;2066,43,102,58;2066,43,121,59;2066,43,126,60;2066,43,124,61;2066,43,103,62;2122,45,10,7;2123,45,178,63;2124,45,16,4;2146,47,10,7;2146,47,1000,18;2146,47,100,19;2146,47,297,64;2146,47,809,20;2146,47,200,14;2146,47,99,2;2146,47,891,2;2147,47,113,9;2147,47,75,10;2147,47,69,15;2147,47,120,0;2147,47,99,1;2275,48,120,0;2275,48,11,3;2276,48,99,1;2381,50,120,0;2381,50,11,3;2381,50,3,11;2381,50,99,1;2444,52,480,65;2445,52,3,11;2571,55,200,18;2571,55,701,20;2571,55,99,2;2571,55,200,14;2571,55,891,2;2572,55,120,0;2572,55,99,1;2573,55,10,43;2573,55,10,44;2574,55,16,4;2578,56,40,0;2578,56,3,11;2578,56,39,1;2618,57,20,0;2618,57,3,11;2618,57,11,3;2618,57,19,1;2620,58,10,7;2620,58,500,18;2620,58,200,19;2620,58,878,20;2620,58,200,14;2620,58,891,2;2620,58,99,2;2621,58,120,0;2621,58,99,1;2622,58,16,4;2631,59,60,0;2631,59,58,1;2633,59,16,4;2678,60,3,11;2748,61,10,7;2748,61,10,66;2846,62,40,0;2846,62,11,3;2869,63,120,0;2878,64,40,0;2878,64,3,11;2878,64,39,1;3047,66,296,67;3047,66,609,68;3047,66,758,69;3047,66,604,42;3047,66,604,70;3047,66,200,14;3048,66,150,9;3048,66,150,10;3048,66,50,13;3048,66,619,71;3048,66,638,72;3049,66,188,73;3049,66,207,74;3055,67,10,7;3102,69,175,21;3103,70,200,5;3129,71,120,0;3129,71,11,3;3301,74,120,0;3301,74,11,3;3302,74,99,1","flow":"90,1,0,401;90,0,0,2;90,1,1,208;150,1,1,167;150,0,0,118;150,2,0,164;150,2,1,14;210,0,0,688;210,0,1,168;210,3,0,493;210,3,1,468;210,2,1,47;210,2,0,245;210,4,0,20;270,0,0,524;270,2,0,490;270,0,1,245;270,5,0,24;270,2,1,59;270,5,1,2;270,7,0,495;270,6,0,40;330,2,0,327;330,7,1,468;330,5,1,73;330,7,0,1;330,0,0,620;330,0,1,84;330,2,1,62;330,8,0,250;330,9,0,500;390,6,1,48;390,5,1,13;390,5,0,9;390,9,0,218;390,2,0,206;390,0,0,69;390,6,0,12;390,9,1,682;390,8,0,10;450,2,1,221;450,4,1,19;450,6,1,20;450,2,0,245;450,5,1,1;450,0,0,235;450,10,0,1972;450,5,0,6;450,0,1,38;450,10,1,207;450,6,0,21;450,11,0,401;510,10,1,2298;510,0,0,118;510,11,1,372;510,10,0,528;510,3,1,2;510,2,0,195;510,5,0,6;510,8,0,3;510,8,1,2;510,13,1,11;510,13,0,28;510,0,1,93;510,12,0,15;510,14,0,380;570,10,1,1;570,14,1,445;570,14,0,75;570,0,0,24;570,12,1,1;570,0,1,4;570,2,1,166;570,7,1,2;570,2,0,20;630,14,1,5;630,2,0,45;630,2,1,329;630,5,1,7;630,0,1,5;630,15,1,12;630,0,0,15;630,5,0,15;630,17,0,148;630,15,0,15;690,17,0,501;690,2,1,242;690,2,0,185;690,17,1,467;690,0,1,5;690,0,0,27;690,16,0,1;690,18,0,15;690,1,1,2;690,15,1,2;690,18,1,5;750,17,0,328;750,17,1,387;750,2,1,425;750,0,0,3;750,16,1,1;750,2,0,222;750,19,1,54;750,19,0,567;750,0,1,8;750,13,1,9;750,11,1,2;810,19,1,522;810,19,0,18;810,17,0,28;810,5,1,20;810,5,0,4;810,17,1,149;810,20,0,27;810,20,1,49;810,2,1,683;810,0,0,35;810,2,0,25;810,12,0,99;810,18,1,12;810,8,1,240;810,10,1,1;870,21,1,6;870,20,1,24;870,18,1,29;870,19,1,3;870,17,0,117;870,22,0,683;870,23,0,250;870,22,1,57;870,17,1,59;870,21,0,8;930,23,0,166;930,22,0,37;930,0,0,16;930,22,1,651;930,17,0,239;930,23,1,79;930,20,1,109;930,14,1,4;930,17,1,424;930,24,1,12;930,25,0,1002;930,24,0,50;990,25,0,1452;990,23,0,251;990,17,0,337;990,0,0,7;990,23,1,442;990,25,1,560;990,20,1,51;990,5,1,1;990,0,1,313;990,17,1,57;990,12,1,93;990,20,0,35;990,24,0,10;1050,23,1,380;1050,25,0,481;1050,26,0,70;1050,23,0,508;1050,25,1,106;1050,19,1,1;1050,0,1,103;1050,17,1,222;1050,0,0,10;1050,20,0,10;1050,17,0,10;1110,23,0,842;1110,17,0,50;1110,17,1,20;1110,26,0,163;1110,0,1,6;1110,23,1,1002;1110,25,0,1;1110,25,1,1;1110,27,0,6;1170,27,0,69;1170,23,1,2;1170,17,0,168;1170,27,1,23;1170,23,0,300;1170,22,1,1;1170,17,1,44;1170,5,1,1;1170,26,1,14;1230,27,0,15;1230,17,0,94;1230,23,0,49;1230,17,1,170;1230,27,1,196;1230,0,1,33;1230,22,1,4;1230,5,0,1;1230,28,0,14;1290,27,1,65;1290,23,0,31;1290,17,1,53;1290,26,0,50;1290,17,0,97;1290,23,1,358;1290,0,1,131;1290,29,0,11;1290,20,1,30;1350,17,0,94;1350,29,1,63;1350,29,0,138;1350,0,1,239;1350,24,1,9;1350,26,0,69;1350,30,1,19;1350,30,0,20;1410,29,1,176;1410,26,0,531;1410,27,1,10;1410,20,1,7;1410,12,1,14;1410,17,1,109;1410,26,1,110;1410,31,0,605;1410,31,1,583;1410,17,0,30;1410,13,1,1;1470,28,1,29;1470,17,1,86;1470,26,0,259;1470,27,1,2;1470,24,0,351;1470,26,1,116;1470,31,1,1;1470,29,1,93;1470,30,0,1;1470,24,1,2;1470,32,0,19;1530,7,1,1;1530,26,0,51;1530,5,1,2;1530,23,1,2;1530,30,1,1;1530,24,1,11;1530,33,1,98;1530,17,0,13;1530,17,1,469;1530,25,1,2;1530,20,1,48;1530,0,0,171;1530,33,0,65;1590,32,1,19;1590,17,1,114;1590,17,0,138;1590,26,1,78;1590,0,0,6;1590,32,0,2;1590,26,0,99;1590,31,1,7;1650,20,1,50;1650,0,0,84;1650,26,1,505;1650,26,0,205;1650,17,1,17;1650,35,1,361;1650,24,1,54;1650,35,0,305;1650,0,1,4;1650,37,0,329;1650,34,0,15;1650,36,0,33;1710,26,1,275;1710,37,0,181;1710,37,1,204;1710,35,1,86;1710,24,1,226;1710,0,0,21;1710,35,0,120;1710,21,1,70;1710,31,1,1;1710,17,0,1;1710,5,1,17;1770,37,0,40;1770,26,1,74;1770,35,1,143;1770,26,0,1;1770,36,1,31;1770,34,0,1;1770,37,1,328;1770,34,1,11;1770,36,0,1;1830,35,0,116;1830,20,1,30;1830,36,1,1;1830,0,0,768;1830,38,0,244;1830,35,1,100;1830,38,1,107;1830,37,1,7;1830,26,1,19;1830,0,1,61;1830,24,1,7;1890,26,1,35;1890,24,1,2;1890,35,1,70;1890,0,0,297;1890,35,0,142;1890,29,1,2;1890,0,1,14;1890,39,0,50;1950,26,1,67;1950,35,0,38;1950,0,1,235;1950,35,1,95;1950,41,1,1;1950,40,0,45;1950,41,0,13;1950,42,0,14;2010,41,1,171;2010,35,0,123;2010,37,1,2;2010,39,1,184;2010,39,0,335;2010,41,0,10;2010,26,1,13;2070,35,1,21;2070,40,1,43;2070,0,0,34;2070,39,0,14;2070,41,1,128;2070,42,0,10;2070,24,1,6;2070,1,1,23;2070,40,0,2;2070,43,1,5;2070,35,0,25;2070,43,0,16;2070,41,0,414;2070,44,0,10;2130,5,0,163;2130,43,1,5;2130,39,0,95;2130,41,0,21;2130,5,1,229;2130,40,1,1;2130,0,0,3;2130,35,0,38;2130,45,0,69;2130,42,1,6;2130,38,1,51;2130,41,1,30;2130,47,0,191;2130,3,1,24;2130,47,1,11;2130,46,0,19;2190,20,1,264;2190,47,0,681;2190,35,0,108;2190,45,0,85;2190,39,0,55;2190,47,1,159;2190,33,1,1;2190,34,1,1;2190,0,0,12;2190,39,1,360;2190,0,1,639;2190,38,0,40;2190,45,1,20;2250,45,1,219;2250,0,1,81;2250,39,0,44;2250,45,0,823;2250,35,0,264;2250,47,0,188;2250,0,0,513;2250,39,1,65;2250,47,1,245;2250,35,1,223;2250,7,1,24;2250,46,1,17;2250,5,1,54;2250,48,0,35;2310,42,1,9;2310,37,1,2;2310,48,0,45;2310,45,1,204;2310,26,1,76;2310,48,1,87;2310,5,1,20;2310,47,1,73;2310,47,0,16;2310,41,1,946;2310,39,1,2;2310,0,0,20;2310,0,1,82;2310,35,1,205;2310,41,0,817;2310,45,0,102;2310,9,1,22;2310,35,0,72;2370,0,0,20;2370,35,0,163;2370,41,0,728;2370,39,1,2;2370,47,0,38;2370,49,0,192;2370,35,1,52;2370,47,1,52;2370,49,1,85;2370,29,1,33;2370,48,1,1;2370,41,1,40;2370,5,1,4;2370,45,1,158;2370,50,0,12;2430,49,1,97;2430,0,1,384;2430,39,1,9;2430,41,1,40;2430,41,0,100;2430,0,0,250;2430,20,1,16;2430,47,0,99;2430,49,0,1;2430,45,0,30;2430,35,0,58;2430,17,1,25;2430,11,1,24;2430,50,0,10;2430,52,1,31;2430,52,0,30;2490,41,0,118;2490,47,0,30;2490,52,0,5;2490,50,1,3;2490,51,0,2;2490,54,0,871;2490,0,1,216;2490,54,1,2;2490,47,1,282;2490,45,1,11;2490,45,0,10;2490,35,0,69;2490,51,1,1;2490,35,1,10;2490,53,0,20;2550,45,0,15;2550,0,1,71;2550,41,1,15;2550,47,0,86;2550,54,0,300;2550,51,1,1;2550,29,1,268;2550,50,1,12;2550,41,0,232;2550,35,1,77;2550,52,1,4;2550,54,1,241;2550,0,0,5;2550,55,0,25;2550,56,0,80;2610,45,0,43;2610,41,0,55;2610,54,0,346;2610,56,0,425;2610,35,0,30;2610,55,1,52;2610,20,1,29;2610,17,1,30;2610,56,1,109;2610,54,1,313;2610,57,1,2;2610,58,0,226;2610,31,1,7;2610,47,1,130;2610,52,1,20;2610,55,0,531;2610,58,1,11;2610,45,1,83;2610,57,0,45;2610,59,0,9;2670,58,1,216;2670,41,0,1;2670,55,0,149;2670,41,1,1;2670,47,1,52;2670,35,1,97;2670,55,1,363;2670,58,0,76;2670,56,0,24;2670,59,0,149;2670,24,1,22;2670,45,0,10;2670,0,0,4;2670,60,0,26;2670,47,0,99;2670,57,1,43;2670,54,1,57;2670,54,0,33;2730,54,0,257;2730,50,1,9;2730,58,1,253;2730,35,0,18;2730,47,0,43;2730,55,0,141;2730,57,1,1;2730,58,0,294;2730,41,0,10;2730,59,1,156;2730,56,1,396;2730,47,1,39;2730,55,1,16;2730,54,1,50;2730,61,0,20;2790,54,0,87;2790,58,0,253;2790,55,0,7;2790,56,1,8;2790,0,0,5;2790,47,1,29;2790,61,1,2;2790,58,1,15;2790,41,1,79;2790,52,1,20;2850,35,1,5;2850,55,0,23;2850,58,1,75;2850,5,1,45;2850,47,1,101;2850,55,1,45;2850,54,0,156;2850,41,1,405;2850,20,1,15;2850,58,0,157;2850,62,1,4;2850,62,0,79;2850,0,1,3;2850,45,0,44;2850,29,1,20;2850,63,0,25;2850,64,0,90;2850,65,0,25;2910,55,1,298;2910,0,0,158;2910,47,1,306;2910,54,1,198;2910,58,0,137;2910,55,0,1;2910,56,1,3;2910,54,0,49;2910,35,1,10;2910,47,0,202;2910,41,1,434;2910,35,0,99;2910,61,1,19;2910,0,1,39;2910,62,1,3;2970,0,0,157;2970,0,1,140;2970,41,1,94;2970,58,1,466;2970,65,1,24;2970,58,0,75;2970,55,1,213;2970,54,1,1112;2970,47,1,122;2970,64,1,4;2970,35,1,20;2970,64,0,234;2970,41,0,10;2970,13,1,17;3030,64,1,365;3030,52,1,2;3030,54,0,100;3030,58,1,289;3030,64,0,60;3030,41,1,29;3030,35,1,39;3030,58,0,101;3030,54,1,94;3030,63,1,11;3030,0,0,98;3030,55,1,2;3030,62,0,44;3030,66,0,31;3030,66,1,41;3030,67,0,40;3090,0,0,108;3090,58,1,242;3090,43,1,197;3090,63,0,351;3090,58,0,281;3090,63,1,2;3090,47,0,10;3090,67,1,1;3090,66,1,323;3090,29,1,30;3090,69,1,48;3090,68,0,24;3090,69,0,50;3090,70,0,15;3150,0,0,46;3150,47,0,10;3150,63,0,19;3150,58,1,95;3150,70,0,45;3150,70,1,75;3150,66,1,12;3150,55,1,8;3150,58,0,1;3150,71,1,20;3150,24,1,48;3150,64,1,8;3150,71,0,9;3210,71,0,1;3210,64,1,5;3210,62,0,192;3210,1,1,3;3210,5,1,7;3210,11,1,3;3210,13,1,9;3210,15,1,9;3210,18,1,9;3210,23,1,3;3210,47,1,9;3210,35,0,4;3210,26,1,9;3210,27,1,7;3210,58,1,11;3210,63,0,108;3210,72,0,60;3210,24,1,12;3210,29,1,6;3210,31,1,3;3210,33,1,3;3210,63,1,31;3210,55,1,11;3210,17,1,7;3210,34,1,9;3210,35,1,104;3210,37,1,3;3210,38,1,4;3210,39,1,9;3210,41,1,29;3210,71,1,1;3210,0,0,4;3210,42,1,5;3210,48,1,9;3210,50,1,9;3210,56,1,4;3210,66,1,90;3210,73,0,27;3210,68,1,23;3210,59,1,5;3210,57,1,2;3270,0,0,2;3270,0,1,24;3270,35,1,16;3270,72,1,56;3270,63,1,53;3270,58,1,28;3270,73,1,24;3270,41,1,187;3270,47,1,9;3270,35,0,10;3270,63,0,181;3270,58,0,24;3270,64,1,2;3330,0,0,3;3330,47,0,61;3330,58,0,23;3330,1,1,1;3330,73,1,2;3330,74,1,73;3330,31,1,1;3330,74,0,379;3330,45,0,6;3330,58,1,75;3330,27,1,1;3330,63,1,142;3390,47,0,50;3390,50,1,10;3390,58,1,20;3390,74,0,210;3390,63,1,3;3390,74,1,47;3390,35,1,12;3390,75,1,24;3390,66,1,1;3390,75,0,25;3450,47,1,99;3450,35,1,127;3450,74,1,93;3450,74,0,304;3450,45,1,15;3450,26,1,39;3450,26,0,40;3450,17,1,22;3450,69,1,16;3450,41,1,11;3450,63,0,5;3510,35,1,395;3510,74,0,314;3510,63,0,304;3510,0,0,17;3510,0,1,139;3510,74,1,18;3510,35,0,257;3570,35,0,3;3570,63,0,122;3570,74,0,137;3570,0,0,9;3570,63,1,107;3570,62,0,41;3570,47,1,214;3570,18,1,10;3630,66,1,1;3630,0,0,36;3630,35,1,3;3630,74,0,311;3630,71,1,1;3630,45,0,99;3630,63,1,51;3630,35,0,28;3630,55,1,24;3690,63,1,6;3690,74,1,325;3690,35,0,127;3690,60,1,24;3690,63,0,5;3690,74,0,102;3690,42,1,13;3690,0,1,61;3690,38,1,34","exits":"0,1,112,41;26,1,112,58;3,1,120,8;19,1,122,34;43,2,165,9;44,2,165,9;26,2,165,117;4,0,188,18;0,3,210,41;26,3,219,18;5,2,221,203;0,0,277,290;12,0,279,18;44,5,292,9;43,5,292,9;0,7,308,41;26,7,308,18;12,5,324,19;7,5,324,12;14,5,331,180;4,5,360,14;26,9,387,29;2,6,415,294;0,5,419,111;2,4,435,188;13,5,449,45;17,10,460,1480;15,10,466,101;0,11,484,41;26,11,484,80;6,3,493,17;16,10,524,3;2,8,529,23;0,13,530,114;4,10,540,6;0,14,552,39;7,12,562,9;2,0,612,366;0,15,621,115;11,5,661,2;2,17,672,1747;4,15,706,15;14,17,712,324;0,19,748,51;26,17,750,138;2,13,758,264;74,17,768,252;3,17,768,38;20,17,769,1274;3,19,783,43;5,5,786,193;11,20,807,3;33,20,816,53;0,18,826,116;0,17,829,173;18,17,837,830;7,17,839,16;19,17,839,304;34,21,854,52;14,20,864,187;30,18,865,289;0,22,876,51;15,20,876,106;7,21,891,9;25,17,892,592;4,20,898,15;43,23,916,11;44,23,916,11;20,20,921,874;15,23,930,74;32,20,934,217;0,24,947,115;0,20,979,45;30,20,990,465;0,23,1020,40;3,5,1188,10;11,15,1206,2;38,25,991,640;37,25,992,480;4,25,1049,34;43,27,1165,10;44,27,1165,9;14,27,1198,214;0,26,1199,142;4,27,1229,17;11,18,1281,2;5,20,1316,303;2,24,1358,1941;3,13,1434,10;11,24,1477,3;44,24,1494,10;43,24,1495,10;23,17,1552,747;22,17,1552,747;24,17,1552,459;31,20,1622,496;35,21,1707,309;36,21,1707,312;2,5,1739,2324;24,0,1948,1484;24,20,2164,577;22,20,2165,812;23,20,2165,810;25,20,2165,444;2,20,2418,138;29,17,2434,250;2,27,1241,1016;7,27,1251,12;18,27,1251,235;20,27,1256,815;39,27,1260,80;0,27,1287,97;14,29,1360,204;4,29,1390,15;32,29,1394,236;3,26,1403,55;0,31,1410,52;11,31,1415,3;20,29,1419,654;3,31,1431,14;30,28,1445,285;30,29,1485,420;0,33,1541,41;30,33,1545,272;11,33,1546,2;16,25,1552,18;41,35,1638,1623;2,35,1659,2266;40,35,1665,1026;15,35,1667,60;11,37,1686,3;0,37,1688,49;14,35,1698,197;2,26,1717,678;4,35,1731,16;20,35,1757,832;26,35,1757,25;26,37,1779,43;0,34,1784,114;0,35,1817,45;0,38,1828,37;11,38,1828,2;11,28,1866,2;25,35,1877,545;26,29,1894,22;24,35,1960,597;43,41,1976,10;44,41,1981,10;0,39,1990,135;11,39,1990,2;30,39,1991,280;18,41,2007,563;2,41,2010,1199;19,41,2010,191;14,41,2019,156;43,39,2021,10;44,39,2021,10;32,35,2040,205;4,41,2053,13;34,43,2075,52;20,41,2077,658;0,42,2130,58;0,41,2138,131;2,47,2156,1978;43,47,2178,10;44,47,2178,10;3,33,2180,10;3,34,2180,10;15,47,2206,90;14,47,2208,324;4,45,2221,18;24,47,2239,625;21,35,2240,363;26,45,2244,30;3,35,2246,48;43,45,2265,9;44,45,2265,8;20,47,2265,1395;2,42,2284,225;0,48,2293,116;0,47,2326,174;2,49,2356,19;3,48,2366,10;7,45,2377,16;26,47,2377,79;43,49,2400,8;44,49,2400,8;11,52,2448,2;29,20,2591,287;2,1,3324,7;2,18,3581,95;25,47,2498,542;18,47,2510,1662;7,47,2510,16;25,29,2528,536;24,29,2528,584;22,29,2529,845;23,29,2529,710;11,42,2587,2;19,47,2745,149;23,47,2891,595;22,47,2891,528;3,41,2909,15;61,43,3070,118;36,43,3070,107;35,43,3070,67;53,43,3070,68;46,43,3070,99;59,43,3070,112;49,43,3070,76;54,43,3070,78;55,43,3070,119;62,43,3070,87;50,43,3070,115;56,43,3070,58;52,43,3071,116;60,43,3071,105;57,43,3071,104;48,43,3071,79;47,43,3071,90;51,43,3071,121;58,43,3071,82;45,43,3071,77;29,29,3107,297;2,31,3333,9;29,35,3455,428;23,35,3512,887;22,35,3512,757;42,35,3512,471;4,50,2475,16;3,50,2475,11;43,54,2486,11;44,54,2486,11;0,50,2531,118;43,55,2589,9;44,55,2589,9;2,55,2598,1970;0,56,2600,46;11,56,2600,3;43,56,2601,9;44,56,2601,9;0,57,2620,19;18,55,2620,216;11,57,2621,2;65,52,2630,417;14,55,2632,190;2,58,2634,1391;43,58,2641,10;44,58,2642,10;4,55,2664,23;14,58,2682,228;20,55,2693,1080;26,58,2696,199;2,50,2704,93;18,58,2705,578;7,58,2707,12;19,58,2707,214;3,57,2713,10;4,58,2716,16;4,59,2726,18;0,59,2729,66;20,58,2743,933;0,55,2755,162;7,61,2796,9;0,58,2805,151;66,61,2811,9;74,58,2824,227;0,62,2846,39;25,55,2882,498;24,55,2888,529;3,62,2938,11;4,62,2939,16;23,55,2961,626;22,55,2961,545;0,64,2970,55;11,64,2988,3;43,64,3000,9;44,64,3000,9;11,50,3004,2;0,63,3023,113;67,66,3059,414;43,63,3095,10;44,63,3095,10;7,67,3102,8;72,66,3103,599;71,66,3103,581;68,66,3103,728;69,66,3103,777;73,66,3103,132;74,66,3103,140;14,66,3109,151;5,70,3132,185;4,66,3144,11;0,71,3162,112;3,71,3223,10;70,66,3232,444;42,66,3232,446;13,66,3233,25;2,73,3272,92;11,60,3296,2;4,73,3324,15;0,74,3328,115;26,74,3345,110;43,74,3349,9;44,74,3349,9;3,74,3394,18;2,74,3519,13;2,63,3665,58","lookbackBlocks":3000000}</script>
+<script>
+/* ======================= configuration ======================= */
+const CONFIG = {
+  TOKEN_CA: "",            // $WRECK contract, fill after launch
+  X_URL: "",               // e.g. https://x.com/shipwreckbay
+  SITE_URL: "shipwreckbay.xyz",
+  RPC: "https://rpc.mainnet.chain.robinhood.com",
+  EXPLORER: "https://robinhoodchain.blockscout.com",
+  PONS: "https://ponsfamily.com/launchpad/",
+  FACTORY: "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e",
+  LAUNCH_AND_BUY: "0xe33e9e479df8802cb0866d5d05258bec4cf62948",
+  T_LAUNCH: "0x8d4aad4953d0ca700d468f3753aa14432d1b35b43ec6409f051fb6aa43a89607",
+  T_BUY: "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
+  T_SELL: "0x8113d738abdcb6b38357e9d53a54a7157861a09031b453651f0fe7fe151f59df",
+  BACKFILL_MIN: 45,        // live: how far back to look on load
+  DOSSIER_BLOCKS: 3000000, // live: captain history depth (about 3.5 days)
+  IDLE: 600,               // seconds without trades before a ship starts sinking
+  SINK: 120,               // seconds a sinking ship takes to reach the seabed
+  GRAD: 4.2,               // ETH in the curve at graduation
+  SNIPE_SEC: 3             // a buy within this many seconds of launch is a shark bite
+};
+
+/* ======================= state ======================= */
+const S = {
+  mode: "connecting", speed: 20, silent: false,
+  ships: [], byCurve: new Map(), byToken: new Map(),
+  events: [], ev: 0,
+  traders: new Map(), sharksSeen: new Set(),
+  vol: 0, recent: [],
+  t: 0, tEnd: 0, base: 0,
+  selected: null, selShark: null, hover: null, tracked: null,
+  log: [], fins: [], bubbles: [], splashes: [],
+  weather: {storm: 0, fog: 0, flash: 0, bolt: null},
+  lh: {flash: 0, ship: null}
+};
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const DAYS = (CONFIG.DOSSIER_BLOCKS * 0.1028 / 86400);
+const daysTxt = () => DAYS >= 3.25 && DAYS < 3.75 ? "3½ days" : DAYS.toFixed(1) + " days";
+
+/* ======================= helpers ======================= */
+const $ = id => document.getElementById(id);
+const short = a => a ? a.slice(0, 6) + "…" + a.slice(-4) : "";
+const fmt = (x, d = 2) => (x || 0).toFixed(d);
+function hash(str){let h=2166136261;for(const c of str){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return (h>>>0)/4294967295}
+function clockTxt(unix){return new Date(unix*1000).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", hour12:false})}
+function ago(sec){sec=Math.max(0,sec);if(sec<90)return Math.round(sec)+"s";if(sec<5400)return Math.round(sec/60)+"m";return (sec/3600).toFixed(1)+"h"}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+const median = a => { if(!a.length) return null; const b=[...a].sort((x,y)=>x-y); return b[Math.floor(b.length/2)]; };
+function store(k,v){ try{ v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(e){} }
+function load(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+
+/* ======================= model ======================= */
+function resetModel(){
+  Object.assign(S,{ships:[],byCurve:new Map(),byToken:new Map(),traders:new Map(),sharksSeen:new Set(),vol:0,recent:[],log:[],fins:[],bubbles:[],splashes:[],ev:0});
+  S.weather.flash = 0; S.weather.bolt = null; S.lh.flash = 0;
+}
+function addShip(o, index){
+  if (S.byCurve.has(o.curve)) return S.byCurve.get(o.curve);
+  const h = hash(o.curve);
+  const ship = Object.assign({
+    vol:0, net:0, inE:0, outE:0, last:o.t0, state:"afloat", sinkAt:null, gradAt:null, wreckAt:null,
+    sharks:new Set(), hist:[[o.t0,0,0]], lane: Math.floor(hash(o.curve+"l")*3), xr: 0.04 + h*0.86, phase: h*6.28
+  }, o);
+  if (index!=null) S.ships[index] = ship; else S.ships.push(ship);
+  S.byCurve.set(o.curve, ship); S.byToken.set(o.token.toLowerCase(), ship);
+  pushLog(o.t0, "launch", `<b>${esc(ship.sym||"?")}</b> set sail${ship.name?` · ${esc(ship.name)}`:""}`, ship);
+  if (!S.silent) sfx("bell");
+  return ship;
+}
+function trader(addr){
+  if(!S.traders.has(addr)) S.traders.set(addr,{addr,bites:[],inE:0,outE:0,exits:new Map()});
+  return S.traders.get(addr);
+}
+function applyTrade(e){
+  const s = e.c!=null ? S.ships[e.c] : S.byCurve.get(e.curve); if(!s) return;
+  s.vol += e.eth; S.vol += e.eth; S.recent.push([e.t, e.eth]);
+  if (e.side===0){ s.inE += e.eth; s.net += e.eth; } else { s.outE += e.eth; s.net -= e.eth; }
+  s.net = Math.max(0, s.net);
+  s.hist.push([e.t, s.vol, s.net]);
+  const wasDown = s.state==="sinking" || s.state==="wreck";
+  s.last = Math.max(s.last, e.t);
+  if (wasDown && s.state!=="graduated"){ s.state="afloat"; s.sinkAt=null; s.wreckAt=null; pushLog(e.t,"salvage",`<b>${esc(s.sym)}</b> was pulled back up by a fresh trade`, s); }
+  if (e.who && e.early){
+    const tr = trader(e.who);
+    tr.inE += e.eth; tr.bites.push({ship:s, t:e.t, eth:e.eth, delay:Math.max(0,e.t-s.t0)});
+    s.sharks.add(e.who); S.sharksSeen.add(e.who);
+    if (!S.silent){ S.fins.push({ship:s, born:performance.now(), dir: hash(e.who)>.5?1:-1, who:e.who}); sfx("bite"); }
+    pushLog(e.t,"snipe",`${short(e.who)} bit <b>${esc(s.sym)}</b> ${Math.round(Math.max(0,e.t-s.t0))}s after launch · ${fmt(e.eth,3)} ETH`, s);
+  } else if (e.who && e.side===1 && S.traders.has(e.who)){
+    recordExit(e.who, s, e.t, e.eth);
+  }
+  if (!S.silent){
+    S.splashes.push({ship:s, side:e.side, born:performance.now(), size:Math.min(1,Math.sqrt(e.eth)*1.4)});
+    if (e.eth >= 0.4 && S.weather.storm > 0.3) strike(s);
+  }
+  if (s === S.lh.ship && e.side===0){ S.lh.flash = 1; if(!S.silent) sfx("bell"); pushLog(e.t,"light",`The lighthouse flashed: $WRECK buy · ${fmt(e.eth,3)} ETH`, s); }
+  if (s.state!=="graduated" && s.net >= CONFIG.GRAD){ s.state="graduated"; s.gradAt=e.t; pushLog(e.t,"grad",`<b>${esc(s.sym)}</b> filled its curve and graduated`, s); if(!S.silent) sfx("grad"); }
+}
+function recordExit(who, ship, t, eth){
+  const tr = trader(who); tr.outE += eth;
+  const x = tr.exits.get(ship) || {t, out:0}; x.out += eth; x.t = Math.min(x.t, t); tr.exits.set(ship, x);
+}
+function stepStates(t){
+  for (const s of S.ships){
+    if (!s || s.t0 > t) continue;
+    if (s.state==="afloat" && t - s.last > CONFIG.IDLE){ s.state="sinking"; s.sinkAt = s.last + CONFIG.IDLE; }
+    if (s.state==="sinking" && t - s.sinkAt > CONFIG.SINK){
+      s.state="wreck"; s.wreckAt = s.sinkAt + CONFIG.SINK;
+      pushLog(s.wreckAt,"sank",`<b>${esc(s.sym)}</b> settled on the seabed with ${fmt(s.vol)} ETH traded`, s);
+      if (!S.silent) sfx("sink");
+    }
+  }
+  // weather from launchpad-wide volume in the last five minutes
+  while (S.recent.length && S.recent[0][0] < t - 300) S.recent.shift();
+  const v5 = S.recent.reduce((a,r)=>a+r[1],0);
+  const w = S.weather;
+  w.target = Math.max(0, Math.min(1, (v5 - 2) / 5));
+  w.fogTarget = Math.max(0, Math.min(1, (0.6 - v5) / 0.6));
+  w.v5 = v5;
+}
+function strike(ship){ S.weather.flash = 1; S.weather.bolt = {x: ship._x ?? ship.xr*W, born: performance.now(), seed: Math.random()}; sfx("thunder"); }
+function pushLog(t, kind, html, ship){
+  S.log.push({t, kind, html, ship});
+  if (S.log.length > 300) S.log.splice(0, S.log.length-300);
+  logDirty = true;
+}
+
+/* ======================= replay mode ======================= */
+async function startReplay(){
+  let D = null;
+  try { const r = await fetch("snapshot.json"); if (r.ok) D = await r.json(); } catch(e){}
+  if (!D){ try { D = JSON.parse($("snapshot").textContent); } catch(e){} }
+  if (!D){ setMode("error","No live feed and no recording found"); return false; }
+  setMode("replay", `Replay · recorded ${clockTxt(D.from)}–${clockTxt(D.to)}`);
+  const traders = D.traders.map(h => "0x"+h);
+  const defs = D.tokens.map((x,i)=>({i, sym:x[0], name:x[1], token:"0x"+x[2], curve:"0x"+x[2], t0:x[3],
+    dev: x[4] ? "0x"+x[4] : null, dossier: x[5]!=null ? {n:x[5], outE:x[6], inE:x[7]} : (x[4]?{error:true}:null)}));
+  const ev = [];
+  defs.forEach(sd => ev.push({t:sd.t0, kind:"launch", sd}));
+  for (const part of D.snipes.split(";")){
+    const f = part.split(",").map(Number);
+    ev.push({t:Math.max(f[0], defs[f[1]].t0), kind:"trade", c:f[1], side:0, eth:f[2]/1e4, who:traders[f[3]], early:true});
+  }
+  for (const part of D.flow.split(";")){
+    const f = part.split(",").map(Number);
+    for (let k=0;k<3;k++){
+      const t = Math.max(f[0] - 20 + k*20, defs[f[1]].t0 + 4 + k);
+      ev.push({t, kind:"trade", c:f[1], side:f[2], eth:f[3]/3e3});
+    }
+  }
+  for (const part of (D.exits||"").split(";").filter(Boolean)){
+    const f = part.split(",").map(Number);
+    ev.push({t:Math.max(f[2], defs[f[1]].t0+1), kind:"exit", who:traders[f[0]], c:f[1], eth:f[3]/1e4});
+  }
+  ev.sort((a,b)=>a.t-b.t || (a.kind==="launch"?-1:b.kind==="launch"?1:0));
+  S.replay = {D, ev, span: D.to - D.from};
+  S.base = D.from; S.tEnd = S.replay.span;
+  $("scrub").max = Math.round(S.tEnd);
+  seek(Math.min(900, S.tEnd*0.25));
+  return true;
+}
+function seek(target){
+  const keepTok = S.selected?.token, keepShark = S.selShark;
+  resetModel(); S.events = S.replay.ev; S.silent = true;
+  for (let t = 0; t <= target; t += 5) advanceTo(t);
+  advanceTo(target); S.t = target; S.silent = false;
+  S.selected = (keepTok && S.byToken.get(keepTok.toLowerCase())) || bestShip();
+  S.selShark = keepShark && S.traders.has(keepShark) ? keepShark : null;
+  if (S.trackedTok) S.tracked = S.byToken.get(S.trackedTok) || null;
+  renderBook(true);
+}
+function advanceTo(t){
+  while (S.ev < S.events.length && S.events[S.ev].t <= t){
+    const e = S.events[S.ev++];
+    if (e.kind==="launch"){ const sd=e.sd; addShip({sym:sd.sym,name:sd.name,token:sd.token,curve:sd.curve,dev:sd.dev,dossier:sd.dossier,t0:sd.t0}, sd.i); }
+    else if (e.kind==="exit"){ const s=S.ships[e.c]; if (s && S.traders.has(e.who)) recordExit(e.who, s, e.t, e.eth); }
+    else applyTrade(e);
+  }
+  stepStates(t);
+}
+
+/* ======================= live mode ======================= */
+async function rpc(method, params, timeout=8000){
+  const ac = new AbortController(); const to = setTimeout(()=>ac.abort(), timeout);
+  try{
+    const r = await fetch(CONFIG.RPC,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params}),signal:ac.signal});
+    const j = await r.json(); if (j.error) throw new Error(j.error.message); return j.result;
+  } finally { clearTimeout(to); }
+}
+async function rpcBatch(calls){
+  const r = await fetch(CONFIG.RPC,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(calls.map((c,i)=>({jsonrpc:"2.0",id:i,method:c[0],params:c[1]})))});
+  const j = await r.json(); const out=[]; (Array.isArray(j)?j:[]).forEach(x=>out[x.id]=x.result); return out;
+}
+const hex = n => "0x"+n.toString(16);
+const word = (d,k) => BigInt("0x"+d.slice(2+64*k, 2+64*k+64));
+const topicAddr = t => ("0x"+t.slice(26)).toLowerCase();
+const padTopic = a => "0x"+"0".repeat(24)+a.toLowerCase().replace("0x","");
+function decodeStr(h){ try{ if(!h||h.length<130) return ""; const len=parseInt(h.slice(66,130),16); return decodeURIComponent(h.slice(130,130+len*2).replace(/(..)/g,"%$1")); }catch(e){ return ""; } }
+
+const L = { head:0, headTs:0, rate:0.1028, polling:false, extra:new Set() };
+const blockT = b => (L.headTs - (L.head - b)*L.rate) - S.base;
+
+async function startLive(){
+  let head;
+  try { head = parseInt(await rpc("eth_blockNumber",[],6000),16); }
+  catch(e){ await new Promise(r=>setTimeout(r,1500)); head = parseInt(await rpc("eth_blockNumber",[],8000),16); }
+  const [hb, ob] = await Promise.all([rpc("eth_getBlockByNumber",[hex(head),false]), rpc("eth_getBlockByNumber",[hex(head-20000),false])]);
+  L.head = head; L.headTs = parseInt(hb.timestamp,16);
+  L.rate = Math.max(0.02, (L.headTs - parseInt(ob.timestamp,16)) / 20000);
+  const back = Math.round(CONFIG.BACKFILL_MIN*60 / L.rate);
+  S.base = L.headTs - CONFIG.BACKFILL_MIN*60; S.t = CONFIG.BACKFILL_MIN*60;
+  setMode("live","Live · Robinhood Chain");
+  $("timeCtl").style.display = "none";
+  S.silent = true;
+  await ingest(head-back, head);
+  if (CONFIG.TOKEN_CA) await lightTheLighthouse();
+  stepStates(S.t); S.silent = false;
+  S.selected = bestShip(); renderBook(true);
+  setInterval(poll, 4000);
+}
+async function getLogsChunked(from, to, filter, step=12000){
+  let out = [];
+  for (let s=from; s<=to; s+=step){
+    const e = Math.min(to, s+step-1);
+    out = out.concat(await rpc("eth_getLogs",[Object.assign({fromBlock:hex(s),toBlock:hex(e)},filter)], 15000));
+  }
+  return out;
+}
+function shipFromLaunchLog(l){
+  const curve = topicAddr(l.topics[2]);
+  if (S.byCurve.has(curve)) return null;
+  return addShip({sym:"…", name:"", token:topicAddr(l.topics[1]), curve, dev:topicAddr(l.topics[3]), t0:blockT(parseInt(l.blockNumber,16))});
+}
+async function ingest(from, to){
+  const launches = await getLogsChunked(from, to, {address:CONFIG.FACTORY, topics:[CONFIG.T_LAUNCH]});
+  const fresh = launches.map(shipFromLaunchLog).filter(Boolean);
+  if (fresh.length) nameShips(fresh);
+  const active = S.ships.filter(s => s.state!=="wreck" || S.t - (s.wreckAt||0) < 1800 || L.extra.has(s.curve)).map(s=>s.curve);
+  let trades = [];
+  for (let i=0;i<active.length;i+=25){
+    trades = trades.concat(await getLogsChunked(from, to, {address:active.slice(i,i+25), topics:[[CONFIG.T_BUY, CONFIG.T_SELL]]}));
+  }
+  applyLogs(trades);
+}
+function applyLogs(trades){
+  trades.sort((a,b)=>parseInt(a.blockNumber,16)-parseInt(b.blockNumber,16) || parseInt(a.logIndex,16)-parseInt(b.logIndex,16));
+  for (const t of trades){
+    const ship = S.byCurve.get(t.address.toLowerCase()); if(!ship) continue;
+    const isBuy = t.topics[0]===CONFIG.T_BUY;
+    const first = topicAddr(t.topics[1]);
+    const who = isBuy ? topicAddr(t.topics[2]) : first;
+    const eth = Number(isBuy ? word(t.data,0) : word(t.data,1)) / 1e18;
+    const tt = blockT(parseInt(t.blockNumber,16));
+    const early = isBuy && first!==CONFIG.LAUNCH_AND_BUY && who!==ship.dev && tt - ship.t0 > 0 && tt - ship.t0 <= CONFIG.SNIPE_SEC;
+    applyTrade({t:tt, curve:ship.curve, side:isBuy?0:1, eth, who, early});
+  }
+}
+async function nameShips(list){
+  for (let i=0;i<list.length;i+=10){
+    const part = list.slice(i,i+10);
+    try{
+      const res = await rpcBatch(part.flatMap(s=>[["eth_call",[{to:s.token,data:"0x06fdde03"},"latest"]],["eth_call",[{to:s.token,data:"0x95d89b41"},"latest"]]]));
+      part.forEach((s,k)=>{ s.name = decodeStr(res[2*k]); s.sym = decodeStr(res[2*k+1]) || short(s.token); });
+      logDirty = true;
+    }catch(e){}
+  }
+}
+async function poll(){
+  if (L.polling) return; L.polling = true;
+  try{
+    const head = parseInt(await rpc("eth_blockNumber",[]),16);
+    if (head > L.head){
+      const hb = await rpc("eth_getBlockByNumber",[hex(head),false]);
+      const from = L.head + 1; L.head = head; L.headTs = parseInt(hb.timestamp,16);
+      await ingest(from, head);
+    }
+  }catch(e){}
+  L.polling = false;
+}
+// bring an older token into the bay (spyglass, lighthouse)
+async function fetchToken(token){
+  const logs = await getLogsChunked(L.head - CONFIG.DOSSIER_BLOCKS, L.head, {address:CONFIG.FACTORY, topics:[CONFIG.T_LAUNCH, padTopic(token)]}, CONFIG.DOSSIER_BLOCKS+1);
+  if (!logs.length) return null;
+  const l = logs[0]; const curve = topicAddr(l.topics[2]);
+  let ship = S.byCurve.get(curve);
+  if (!ship){
+    S.silent = true;
+    ship = shipFromLaunchLog(l); await nameShips([ship]);
+    L.extra.add(curve);
+    const b0 = parseInt(l.blockNumber,16), from = Math.max(b0, L.head - 120000);
+    applyLogs(await getLogsChunked(from, L.head, {address:[curve], topics:[[CONFIG.T_BUY, CONFIG.T_SELL]]}, 50000));
+    stepStates(S.t); S.silent = false;
+  }
+  return ship;
+}
+async function loadDossier(ship){
+  if (ship.dossier || !ship.dev || S.mode!=="live") return;
+  ship.dossier = {loading:true}; renderBook(true);
+  try{
+    const dv = padTopic(ship.dev);
+    const from = L.head - CONFIG.DOSSIER_BLOCKS;
+    const launches = await rpc("eth_getLogs",[{fromBlock:hex(from),toBlock:hex(L.head),address:CONFIG.FACTORY,topics:[CONFIG.T_LAUNCH,null,null,dv]}],20000);
+    const curves = launches.map(l=>topicAddr(l.topics[2]));
+    let inE=0,outE=0;
+    for (let k=0;k<curves.length;k+=50){
+      const part = curves.slice(k,k+50);
+      const sells = await rpc("eth_getLogs",[{fromBlock:hex(from),toBlock:hex(L.head),address:part,topics:[CONFIG.T_SELL,dv]}],20000);
+      const buys = await rpc("eth_getLogs",[{fromBlock:hex(from),toBlock:hex(L.head),address:part,topics:[CONFIG.T_BUY,null,dv]}],20000);
+      outE += sells.reduce((a,x)=>a+Number(word(x.data,1))/1e18,0);
+      inE += buys.reduce((a,x)=>a+Number(word(x.data,0))/1e18,0);
+    }
+    ship.dossier = {n:launches.length, inE, outE};
+  }catch(e){ ship.dossier = {error:true}; }
+  renderBook(true);
+}
+
+/* ======================= lighthouse ($WRECK) ======================= */
+async function lightTheLighthouse(){
+  try{
+    const ship = await fetchToken(CONFIG.TOKEN_CA);
+    if (ship){ S.lh.ship = ship; ship.flagship = true; }
+  }catch(e){}
+}
+function lhActivity(){
+  const s = S.lh.ship; if (!s) return 0;
+  let v = 0; for (let i=s.hist.length-1;i>0;i--){ if (s.hist[i][0] < S.t-3600) break; v += s.hist[i][1]-s.hist[i-1][1]; }
+  return Math.min(1, v/3);
+}
+
+/* ======================= mode & boot ======================= */
+function setMode(mode, txt){
+  S.mode = mode; const p=$("mode"); p.className = "pill "+(mode==="replay"?"replay":mode==="error"?"err":"");
+  $("modeTxt").textContent = txt;
+  $("foot").textContent = mode==="live" ? "Live feed" : mode==="replay" ? (location.protocol==="file:" ? "Opened from disk, so the live feed is off. Put the page on a website to go live." : "Showing a recording of real launches. The live feed could not be reached from here.") : "";
+}
+async function boot(){
+  try { await startLive(); }
+  catch(e){ console.warn("Live feed unavailable, showing the recording:", e); S.liveErr = true; await startReplay(); }
+  initToken();
+  const saved = load("swb-spy"); if (saved){ $("spyIn").value = saved; spyglass(saved, true); }
+  last = performance.now(); requestAnimationFrame(frame);
+}
+
+/* ======================= sound (synthesised, off by default) ======================= */
+const A = {ctx:null, on:false, last:{}, sea:null};
+function soundToggle(){
+  A.on = !A.on;
+  $("sound").setAttribute("aria-pressed", A.on); $("sound").textContent = A.on ? "Sound on" : "Sound off";
+  if (A.on && !A.ctx){
+    try{
+      A.ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const len = A.ctx.sampleRate*4, buf = A.ctx.createBuffer(1,len,A.ctx.sampleRate), d = buf.getChannelData(0);
+      let lastV=0; for(let i=0;i<len;i++){ const w=Math.random()*2-1; lastV=(lastV+0.02*w)/1.02; d[i]=lastV*3.2; }
+      const src = A.ctx.createBufferSource(); src.buffer=buf; src.loop=true;
+      const lp = A.ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=500;
+      const g = A.ctx.createGain(); g.gain.value=0;
+      src.connect(lp).connect(g).connect(A.ctx.destination); src.start();
+      A.sea = {g, lp};
+    }catch(e){ A.on=false; $("sound").textContent="Sound unavailable"; return; }
+  }
+  if (A.ctx){ A.ctx.resume?.(); A.sea.g.gain.setTargetAtTime(A.on?0.18:0, A.ctx.currentTime, 0.3); }
+}
+function sfx(kind){
+  if (!A.on || !A.ctx) return;
+  const now = A.ctx.currentTime, gap = {bell:.5,bite:.25,sink:.8,grad:1,thunder:1.5}[kind]||.3;
+  if (A.last[kind] && now - A.last[kind] < gap) return; A.last[kind] = now;
+  const out = A.ctx.destination;
+  const tone = (f, t0, dur, vol, type="sine", f2) => { const o=A.ctx.createOscillator(), g=A.ctx.createGain(); o.type=type; o.frequency.setValueAtTime(f, now+t0); if(f2) o.frequency.exponentialRampToValueAtTime(f2, now+t0+dur); g.gain.setValueAtTime(vol, now+t0); g.gain.exponentialRampToValueAtTime(0.0001, now+t0+dur); o.connect(g).connect(out); o.start(now+t0); o.stop(now+t0+dur+.05); };
+  const noise = (t0, dur, vol, freq, q=1) => { const n=A.ctx.sampleRate*dur, b=A.ctx.createBuffer(1,n,A.ctx.sampleRate), d=b.getChannelData(0); for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n); const s=A.ctx.createBufferSource(); s.buffer=b; const f=A.ctx.createBiquadFilter(); f.type="bandpass"; f.frequency.value=freq; f.Q.value=q; const g=A.ctx.createGain(); g.gain.value=vol; s.connect(f).connect(g).connect(out); s.start(now+t0); };
+  if (kind==="bell"){ tone(1046,0,1.6,.05); tone(1568,0,1.1,.025); tone(523,0,2,.03); }
+  if (kind==="bite"){ noise(0,.25,.25,900,2); tone(180,0,.18,.05,"triangle",90); }
+  if (kind==="sink"){ tone(110,0,1.4,.12,"sine",38); noise(0,.9,.12,300,.7); }
+  if (kind==="grad"){ [523,659,784,1046].forEach((f,i)=>tone(f,i*.12,.9,.05)); }
+  if (kind==="thunder"){ noise(0,2.2,.35,120,.4); }
+}
+
+/* ======================= canvas ======================= */
+const cv = $("sea"), ctx = cv.getContext("2d");
+let W=0,H=0,DPR=1, stars=[], clouds=[];
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio||1);
+  const r = cv.getBoundingClientRect(); W=r.width; H=r.height;
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR); ctx.setTransform(DPR,0,0,DPR,0,0);
+  stars = Array.from({length:Math.round(W/9)},(_,i)=>({x:hash("x"+i)*W,y:hash("y"+i)*H*0.3,r:hash("r"+i)*1.2+.2,p:hash("p"+i)*6}));
+  clouds = Array.from({length:7},(_,i)=>({x:hash("cx"+i)*W, y:20+hash("cy"+i)*H*0.22, w:160+hash("cw"+i)*260, s:4+hash("cs"+i)*10}));
+}
+addEventListener("resize", resize);
+
+const geo = () => ({surface: H*0.45, bed: H*0.79});
+let waveAmp = 1;
+function waveY(x, t, lane){
+  const g = geo(); const amp = (reduced?1:3.2) * waveAmp;
+  return g.surface - lane*16 + Math.sin(x*0.012 + t*0.9 + lane)*amp + Math.sin(x*0.031 - t*1.3)*amp*0.5;
+}
+function shipScale(s){ return 0.55 + Math.min(1.7, Math.sqrt(s.vol)*0.55); }
+const easeIn = p => p*p*(3-2*p);
+function shipPos(s, now){
+  const g = geo(); const x = s.xr*W + Math.sin(now*0.05 + s.phase)*8;
+  let y = waveY(x, now, s.lane), tilt = Math.sin(now*1.1+s.phase)*0.04*(1+S.weather.storm*3), alpha=1;
+  if (s.state==="sinking"){
+    const p = Math.min(1, (S.t - s.sinkAt)/CONFIG.SINK);
+    y = y + (g.bed - 10 - y)*easeIn(p); tilt = 0.15 + p*0.6*(s.phase>3?1:-1); alpha = 1 - p*0.35;
+  } else if (s.state==="wreck"){
+    y = g.bed - 6 + (hash(s.curve+"b")-.5)*10; tilt = (s.phase>3?1:-1)*(0.5+hash(s.curve+"t")*0.5); alpha = .55;
+  }
+  return {x,y,tilt,alpha};
+}
+
+function drawBackground(now){
+  const g = geo(), w = S.weather;
+  // sky, darker in a storm
+  let gr = ctx.createLinearGradient(0,0,0,g.surface);
+  gr.addColorStop(0, w.storm>.5 ? "#03070a" : "#050b11"); gr.addColorStop(1, `rgb(${19-w.storm*8},${41-w.storm*16},${58-w.storm*20})`);
+  ctx.fillStyle = gr; ctx.fillRect(0,0,W,g.surface+40);
+  ctx.globalAlpha = 1 - w.storm*0.8;
+  for (const s of stars){ ctx.globalAlpha = (.35+.35*Math.sin(now*0.7+s.p))*(1-w.storm*0.85); ctx.fillStyle="#e9e0c8"; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,6.28); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  // moon
+  const mx = W*0.72, my = g.surface*0.3;
+  ctx.globalAlpha = 1 - w.storm*0.7;
+  const mg = ctx.createRadialGradient(mx,my,4,mx,my,90); mg.addColorStop(0,"rgba(233,224,200,.18)"); mg.addColorStop(1,"rgba(233,224,200,0)");
+  ctx.fillStyle=mg; ctx.fillRect(mx-90,my-90,180,180);
+  ctx.fillStyle="#e9e0c8"; ctx.beginPath(); ctx.arc(mx,my,16,0,6.28); ctx.fill();
+  ctx.fillStyle="#0e1f2c"; ctx.beginPath(); ctx.arc(mx+7,my-4,14,0,6.28); ctx.fill();
+  ctx.globalAlpha = 1;
+  // clouds
+  if (w.storm > 0.05){
+    for (const c of clouds){
+      const x = ((c.x + now*c.s*(1+w.storm*2)) % (W+c.w*2)) - c.w;
+      ctx.globalAlpha = Math.min(.85, w.storm*0.9);
+      ctx.fillStyle = "#0a1219";
+      for (let k=0;k<4;k++){ ctx.beginPath(); ctx.ellipse(x+k*c.w*.22, c.y+Math.sin(k*1.7)*8, c.w*.3, 22+k*3, 0, 0, 6.28); ctx.fill(); }
+    }
+    ctx.globalAlpha = 1;
+  }
+  drawLighthouse(now);
+  // water body
+  gr = ctx.createLinearGradient(0,g.surface-40,0,H);
+  gr.addColorStop(0,"#123447"); gr.addColorStop(.45,"#0b2131"); gr.addColorStop(1,"#040a10");
+  ctx.fillStyle = gr;
+  ctx.beginPath(); ctx.moveTo(0,H);
+  for (let x=0;x<=W;x+=8) ctx.lineTo(x, waveY(x, now, 2)-2);
+  ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+  // moon path
+  ctx.globalAlpha=.12*(1-w.storm); ctx.fillStyle="#e9e0c8";
+  for (let i=0;i<14;i++){ const y = g.surface - 30 + i*9; const ww = 40 - i*2 + Math.sin(now*2+i)*6; ctx.fillRect(mx - ww/2 + Math.sin(now+i)*5, y, ww, 1.5); }
+  ctx.globalAlpha=1;
+  // light shafts
+  ctx.globalAlpha = .05*(1-w.storm*.7); ctx.fillStyle = "#e9e0c8";
+  for (let i=0;i<5;i++){ const x = (i+.5)*W/5 + Math.sin(now*0.2+i)*30; ctx.beginPath(); ctx.moveTo(x-20,g.surface); ctx.lineTo(x+20,g.surface); ctx.lineTo(x+90,g.bed); ctx.lineTo(x+10,g.bed); ctx.closePath(); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  // seabed
+  ctx.fillStyle = "#1a1712";
+  ctx.beginPath(); ctx.moveTo(0,H);
+  for (let x=0;x<=W;x+=10) ctx.lineTo(x, g.bed + Math.sin(x*0.013)*6 + Math.sin(x*0.051)*2);
+  ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(201,162,74,.08)";
+  for (let i=0;i<W/14;i++){ const x=hash("s"+i)*W, y=g.bed+8+hash("t"+i)*(H-g.bed-8); ctx.fillRect(x,y,2,1); }
+  ctx.strokeStyle="rgba(121,179,148,.25)"; ctx.lineWidth=2;
+  for (let i=0;i<Math.round(W/70);i++){ const x=hash("k"+i)*W, h=30+hash("kh"+i)*60; ctx.beginPath(); ctx.moveTo(x,g.bed+4); for(let k=1;k<=8;k++){ ctx.lineTo(x+Math.sin(now*1.2+k*.7+i)*5*(k/8)*(1+w.storm), g.bed+4-h*k/8); } ctx.stroke(); }
+  ctx.strokeStyle=`rgba(233,224,200,${.22+w.storm*.25})`; ctx.lineWidth=1; ctx.beginPath();
+  for (let x=0;x<=W;x+=6) ctx.lineTo(x, waveY(x, now, 2)-2);
+  ctx.stroke();
+}
+
+function drawLighthouse(now){
+  const g = geo(); const x = W - Math.max(46, W*0.045), base = g.surface + 6;
+  // cliff
+  ctx.fillStyle = "#0b151c";
+  ctx.beginPath(); ctx.moveTo(x-70, base+30); ctx.lineTo(x-38, base-38); ctx.lineTo(x-10,base-52); ctx.lineTo(x+30,base-48); ctx.lineTo(W+10, base-30); ctx.lineTo(W+10, base+40); ctx.closePath(); ctx.fill();
+  // tower
+  const tw = 16, th = 74, top = base-48-th;
+  ctx.fillStyle = "#d8cfb6";
+  ctx.beginPath(); ctx.moveTo(x-tw/2, base-48); ctx.lineTo(x-tw*.35, top); ctx.lineTo(x+tw*.35, top); ctx.lineTo(x+tw/2, base-48); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#8e3a2a"; for (let k=0;k<3;k++){ const y0 = top + 12 + k*22; ctx.fillRect(x-tw*.42+k*.6, y0, tw*.84-k*1.2, 8); }
+  ctx.fillStyle = "#1a242b"; ctx.fillRect(x-9, top-12, 18, 12);
+  ctx.beginPath(); ctx.moveTo(x-11,top-12); ctx.lineTo(x,top-22); ctx.lineTo(x+11,top-12); ctx.fill();
+  // lamp and beam
+  const lit = !!S.lh.ship;
+  const act = lit ? 0.35 + lhActivity()*0.65 : 0;
+  const f = S.lh.flash;
+  const lampA = lit ? Math.min(1, act + f) : 0.15;
+  ctx.fillStyle = lit ? `rgba(240,210,120,${lampA})` : "rgba(233,224,200,.15)";
+  ctx.beginPath(); ctx.arc(x, top-6, 4, 0, 6.28); ctx.fill();
+  if (lit){
+    const ang = Math.PI + Math.sin(now*0.35)*0.55;
+    const len = W*0.55*(0.5+act*0.5+f*0.4);
+    const spread = 0.08 + f*0.05;
+    const gr = ctx.createRadialGradient(x, top-6, 2, x, top-6, len);
+    gr.addColorStop(0, `rgba(240,210,120,${0.35*lampA})`); gr.addColorStop(1, "rgba(240,210,120,0)");
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.moveTo(x, top-6); ctx.lineTo(x+Math.cos(ang-spread)*len, top-6+Math.sin(ang-spread)*len); ctx.lineTo(x+Math.cos(ang+spread)*len, top-6+Math.sin(ang+spread)*len); ctx.closePath(); ctx.fill();
+    if (f > 0){ const hg = ctx.createRadialGradient(x, top-6, 1, x, top-6, 60*f+10); hg.addColorStop(0,`rgba(255,230,160,${.7*f})`); hg.addColorStop(1,"rgba(255,230,160,0)"); ctx.fillStyle=hg; ctx.fillRect(x-80,top-86,160,160); }
+  }
+  ctx.font = "500 10px 'IBM Plex Mono', monospace"; ctx.textAlign = "center"; ctx.fillStyle = lit ? "rgba(233,224,200,.85)" : "rgba(233,224,200,.45)";
+  ctx.fillText(lit ? "$WRECK" : "$WRECK · unlit", x, base+44);
+  S.lh.x = x; S.lh.y = top;
+}
+
+function drawShip(s, now){
+  const {x,y,tilt,alpha} = shipPos(s, now);
+  const k = shipScale(s); const Ln = 34*k;
+  const grad = s.state==="graduated", wreck = s.state==="wreck";
+  const sel = S.selected===s, hov = S.hover===s, trk = S.tracked===s;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(tilt); ctx.globalAlpha = alpha * (s.lane===0?1:s.lane===1?.85:.7);
+  ctx.fillStyle = wreck ? "#2a241c" : "#3b2a1c";
+  ctx.strokeStyle = sel||trk ? "#c9a24a" : hov ? "#e9e0c8" : "rgba(233,224,200,.55)"; ctx.lineWidth = sel||trk?2:1;
+  ctx.beginPath(); ctx.moveTo(-Ln/2,-Ln*0.12); ctx.lineTo(Ln/2,-Ln*0.12); ctx.lineTo(Ln*0.36,Ln*0.16); ctx.lineTo(-Ln*0.4,Ln*0.16); ctx.closePath(); ctx.fill(); ctx.stroke();
+  const mh = Ln*(0.55 + Math.min(1.4, s.vol*0.12));
+  ctx.strokeStyle = wreck ? "rgba(233,224,200,.35)" : "rgba(233,224,200,.8)"; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(0,-Ln*0.12);
+  if (wreck){ ctx.lineTo(Ln*0.12,-mh*0.5); } else ctx.lineTo(0,-Ln*0.12-mh);
+  ctx.stroke();
+  if (!wreck){
+    const fill = Math.max(0.15, Math.min(1, s.net / CONFIG.GRAD + 0.15));
+    const sw = Ln*0.42*(0.5+fill*0.7);
+    const billow = Math.sin(now*2+s.phase)*2*(1+S.weather.storm*2);
+    ctx.fillStyle = grad||s.flagship ? "#c9a24a" : s.state==="sinking" ? "rgba(214,90,60,.65)" : "rgba(233,224,200,.88)";
+    ctx.beginPath(); ctx.moveTo(2,-Ln*0.12-mh*0.95); ctx.quadraticCurveTo(2+sw+billow,-Ln*0.12-mh*0.55,2,-Ln*0.12-mh*0.15); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-2,-Ln*0.12-mh*0.85); ctx.quadraticCurveTo(-2-sw*0.6-billow,-Ln*0.12-mh*0.5,-2,-Ln*0.12-mh*0.2); ctx.closePath(); ctx.globalAlpha*=.8; ctx.fill();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = s.sharks.size ? "#d65a3c" : "#79b394";
+    ctx.beginPath(); ctx.moveTo(0,-Ln*0.12-mh); ctx.lineTo(8+Math.sin(now*4+s.phase)*2,-Ln*0.12-mh+3); ctx.lineTo(0,-Ln*0.12-mh+6); ctx.fill();
+  }
+  ctx.restore();
+  // spyglass beacon
+  if (trk){
+    const top = y - Ln*0.12 - mh - 14;
+    ctx.strokeStyle = "rgba(201,162,74,.8)"; ctx.lineWidth = 1.5;
+    const r = 10 + (now*20 % 18);
+    ctx.globalAlpha = 1 - (r-10)/18; ctx.beginPath(); ctx.arc(x, y-6, r+Ln*0.4, 0, 6.28); ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillStyle = "#c9a24a"; ctx.beginPath(); ctx.moveTo(x, top+8); ctx.lineTo(x-6, top-2); ctx.lineTo(x+6, top-2); ctx.fill();
+  }
+  if ((!wreck && labelSet.has(s)) || sel || hov || trk){
+    ctx.font = "500 11px 'IBM Plex Mono', monospace"; ctx.textAlign="center";
+    ctx.fillStyle = sel||trk ? "#c9a24a" : "rgba(233,224,200,.9)";
+    ctx.fillText(s.sym||"", x, y + Ln*0.16 + 14);
+  }
+  if (s.state==="sinking" && Math.random()<0.25) S.bubbles.push({x:x+(Math.random()-.5)*Ln*.6,y:y-4,v:20+Math.random()*30,born:now});
+  s._x = x; s._y = y - mh*0.4; s._r = Math.max(14, Ln*0.7);
+}
+
+function drawShark(f, nowMs, now){
+  const age = (nowMs - f.born)/1000, life = 9;
+  if (age > life) return false;
+  const s = f.ship; if (s._x==null) return true;
+  const ang = now*1.6*f.dir + hash(f.who)*6;
+  const out = age > life-2.5 ? (age-(life-2.5))*120 : 0;
+  const x = s._x + Math.cos(ang)*(46+out) + f.dir*out;
+  const y = waveY(s._x, now, s.lane) + 26 + Math.sin(ang)*10 + age*1.5;
+  const dir = -Math.sin(ang)*f.dir >= 0 ? 1 : -1;
+  ctx.save(); ctx.translate(x,y); ctx.scale(dir,1);
+  ctx.globalAlpha = Math.min(1, age*2) * (age>life-1?life-age:1);
+  ctx.fillStyle = S.selShark===f.who ? "#f0b39e" : "#d65a3c";
+  ctx.beginPath(); ctx.ellipse(0,0,15,4.5,0,0,6.28); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-13,0); ctx.lineTo(-22,-6); ctx.lineTo(-19,0); ctx.lineTo(-22,6); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-2,-4); ctx.lineTo(3,-11); ctx.lineTo(6,-4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#060d13"; ctx.beginPath(); ctx.arc(10,-1,1,0,6.28); ctx.fill();
+  ctx.restore();
+  return true;
+}
+
+function drawWeatherFront(nowMs, now){
+  const w = S.weather, g = geo();
+  if (w.storm > 0.35 && !reduced){
+    ctx.strokeStyle = `rgba(200,215,225,${(w.storm-.35)*0.5})`; ctx.lineWidth = 1;
+    ctx.beginPath();
+    const n = Math.round(W/9*w.storm);
+    for (let i=0;i<n;i++){ const x = (hash("rx"+i)*W + now*260) % W, y = (hash("ry"+i)*H + now*700*(0.7+hash("rv"+i)*.6)) % (g.bed); ctx.moveTo(x,y); ctx.lineTo(x-5,y+14); }
+    ctx.stroke();
+  }
+  if (w.fog > 0.05){
+    const gr = ctx.createLinearGradient(0, g.surface-90, 0, g.surface+40);
+    gr.addColorStop(0,"rgba(160,170,170,0)"); gr.addColorStop(.6,`rgba(150,160,160,${w.fog*0.22})`); gr.addColorStop(1,"rgba(150,160,160,0)");
+    ctx.fillStyle = gr; ctx.fillRect(0, g.surface-90, W, 130);
+  }
+  if (w.bolt){
+    const a = (nowMs - w.bolt.born)/1000; if (a > .45) w.bolt = null;
+    else {
+      ctx.strokeStyle = `rgba(240,235,210,${1-a/.45})`; ctx.lineWidth = 2; ctx.beginPath();
+      let x = w.bolt.x + (w.bolt.seed-.5)*60, y = 0; ctx.moveTo(x,y);
+      for (let k=1;k<=9;k++){ x += (hash(w.bolt.seed+"b"+k)-.5)*40; y = (geo().surface-20)*k/9; ctx.lineTo(x,y); }
+      ctx.stroke();
+    }
+  }
+  if (w.flash > 0){ ctx.fillStyle = `rgba(230,235,240,${w.flash*0.18})`; ctx.fillRect(0,0,W,H); }
+}
+
+function drawFx(nowMs, now){
+  S.bubbles = S.bubbles.filter(b => {
+    const a = now - b.born; if (a>3) return false;
+    const y = b.y - a*b.v; if (y < geo().surface - 20) return false;
+    ctx.strokeStyle = "rgba(233,224,200,.35)"; ctx.beginPath(); ctx.arc(b.x + Math.sin(a*5)*3, y, 1.5+a, 0, 6.28); ctx.stroke(); return true;
+  });
+  S.splashes = S.splashes.filter(p => {
+    const a = (nowMs - p.born)/1000; if (a>1.2 || p.ship._x==null) return false;
+    ctx.globalAlpha = 1 - a/1.2;
+    ctx.fillStyle = p.side===0 ? "#79b394" : "#d65a3c";
+    for (let i=0;i<4;i++){ const ang = -Math.PI/2 + (i-1.5)*0.45; const r = 8 + a*26*(0.6+p.size);
+      ctx.beginPath(); ctx.arc(p.ship._x + Math.cos(ang)*r, p.ship._y + 20 + Math.sin(ang)*r*(p.side===0?1:-0.6), 1.6, 0, 6.28); ctx.fill(); }
+    ctx.globalAlpha = 1; return true;
+  });
+}
+
+let labelSet = new Set();
+let last = 0, logDirty = true, bookTimer = 0;
+function frame(nowMs){
+  const dt = Math.min(0.1, (nowMs - last)/1000); last = nowMs;
+  if (S.mode==="replay"){
+    if (S.speed > 0){
+      S.t += dt * S.speed;
+      if (S.t > S.tEnd + 60){ seek(0); }
+      advanceTo(S.t);
+    }
+    if (!scrubbing) $("scrub").value = Math.round(S.t);
+  } else if (S.mode==="live"){
+    S.t = Date.now()/1000 - S.base;
+    stepStates(S.t);
+  }
+  // ease the weather
+  const w = S.weather, k = Math.min(1, dt*0.8);
+  w.storm += ((w.target||0) - w.storm) * k; w.fog += ((w.fogTarget||0) - w.fog) * k;
+  w.flash = Math.max(0, w.flash - dt*2.5); S.lh.flash = Math.max(0, S.lh.flash - dt*0.8);
+  waveAmp = 1 + w.storm*2.6;
+  if (A.sea && A.on){ A.sea.g.gain.setTargetAtTime(0.12 + w.storm*0.35, A.ctx.currentTime, 0.5); A.sea.lp.frequency.setTargetAtTime(400 + w.storm*900, A.ctx.currentTime, 0.5); }
+
+  const now = nowMs/1000;
+  ctx.clearRect(0,0,W,H);
+  drawBackground(now);
+  const list = S.ships.filter(s => s && s.t0 <= S.t);
+  labelSet = new Set(list.filter(s=>s.state!=="wreck").sort((a,b)=>b.vol-a.vol).slice(0, W<700?4:8));
+  for (const s of list) if (s.state==="wreck") drawShip(s, now);
+  for (const lane of [2,1,0]) for (const s of list) if (s.state!=="wreck" && s.lane===lane) drawShip(s, now);
+  S.fins = S.fins.filter(f => drawShark(f, nowMs, now));
+  drawFx(nowMs, now);
+  drawWeatherFront(nowMs, now);
+
+  $("nAfloat").textContent = list.filter(s=>s.state==="afloat"||s.state==="sinking").length;
+  $("nWreck").textContent = list.filter(s=>s.state==="wreck").length;
+  $("nGrad").textContent = list.filter(s=>s.state==="graduated").length;
+  $("nShark").textContent = S.sharksSeen.size;
+  $("nVol").textContent = fmt(S.vol);
+  const wx = w.storm > .6 ? "Storm" : w.storm > .25 ? "Fresh gale" : w.fog > .5 ? "Fog" : "Calm";
+  $("wx").textContent = wx; $("wxSub").textContent = `sea state · ${fmt(w.v5,1)} ETH / 5 min`;
+  $("clock").textContent = (S.mode==="replay" ? `Bay time · ×${S.speed} · ` : "") + clockTxt(S.base + S.t);
+  bookTimer += dt;
+  if (logDirty || bookTimer > 1.5){ renderBook(); bookTimer = 0; }
+  requestAnimationFrame(frame);
+}
+
+/* ======================= interaction ======================= */
+function nearest(mx,my){
+  let best=null, bd=1e9;
+  for (const s of S.ships){ if(!s || s._x==null || s.t0 > S.t) continue; const d = Math.hypot(s._x-mx, s._y-my); if (d < s._r+10 && d < bd){ bd=d; best=s; } }
+  return best;
+}
+function overLighthouse(mx,my){ return S.lh.x && Math.abs(mx-S.lh.x) < 22 && my > S.lh.y-26 && my < S.lh.y+130; }
+cv.addEventListener("mousemove", e => {
+  const r = cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top; const s = nearest(mx,my);
+  S.hover = s; const tip = $("tip");
+  if (s){ tip.style.display="block"; tip.style.left = mx+"px"; tip.style.top=my+"px";
+    tip.innerHTML = `${esc(s.sym)} · ${fmt(s.vol)} ETH · ${stateName[s.state]}${s.sharks.size?` · ${s.sharks.size} shark${s.sharks.size>1?"s":""}`:""}`; cv.style.cursor="pointer"; }
+  else if (overLighthouse(mx,my)){ tip.style.display="block"; tip.style.left = mx+"px"; tip.style.top=my+"px"; tip.textContent = S.lh.ship ? `$WRECK lighthouse · ${fmt(S.lh.ship.vol)} ETH traded` : "$WRECK lighthouse · not lit yet"; cv.style.cursor="help"; }
+  else { tip.style.display="none"; cv.style.cursor="crosshair"; }
+});
+cv.addEventListener("mouseleave", ()=>{ S.hover=null; $("tip").style.display="none"; });
+cv.addEventListener("click", e => { const r = cv.getBoundingClientRect(); const s = nearest(e.clientX-r.left, e.clientY-r.top); if (s) selectShip(s); });
+function selectShip(s){ S.selected = s; S.selShark = null; loadDossier(s); renderBook(true); }
+function selectShark(a){ S.selShark = a; renderBook(true); }
+
+// spyglass
+function spyglass(q, quiet){
+  q = q.trim(); const msg = $("spyMsg");
+  if (!q){ S.tracked=null; S.trackedTok=null; store("swb-spy",null); msg.textContent=""; return; }
+  let ship = null;
+  if (/^0x[0-9a-fA-F]{40}$/.test(q)) ship = S.byToken.get(q.toLowerCase()) || S.byCurve.get(q.toLowerCase());
+  else { const m = S.ships.filter(s=>s && s.t0<=S.t && (s.sym||"").toLowerCase()===q.replace(/^\$/,"").toLowerCase()); ship = m.sort((a,b)=>b.vol-a.vol)[0]; }
+  if (ship){ track(ship); msg.textContent = `Tracking ${ship.sym}. Its events are highlighted in the log.`; store("swb-spy", q); return; }
+  if (S.mode==="live" && /^0x[0-9a-fA-F]{40}$/.test(q)){
+    msg.textContent = "Not in view. Searching the last 3½ days of launches…";
+    fetchToken(q).then(s => { if (s){ track(s); msg.textContent = `Found ${s.sym}. It sails in from earlier.`; store("swb-spy", q); } else msg.textContent = "No Pons launch with that address in the last 3½ days."; })
+      .catch(()=> msg.textContent = "The RPC did not answer. Try again in a moment.");
+    return;
+  }
+  if (!quiet) msg.textContent = S.mode==="replay" ? "That ship is not in this recording. On the live site any Pons token address works." : "No ship with that ticker in view. Paste the token address to search further back.";
+}
+function track(ship){ S.tracked = ship; S.trackedTok = ship.token.toLowerCase(); selectShip(ship); }
+$("spyForm").addEventListener("submit", e => { e.preventDefault(); spyglass($("spyIn").value); });
+$("spyClear").addEventListener("click", () => { $("spyIn").value=""; spyglass(""); });
+
+// tide controls
+let scrubbing = false;
+$("scrub").addEventListener("input", e => { if (S.mode!=="replay") return; scrubbing = true; seek(+e.target.value); });
+$("scrub").addEventListener("change", () => { scrubbing = false; });
+document.querySelectorAll("[data-speed]").forEach(b => b.addEventListener("click", () => {
+  S.speed = +b.dataset.speed; document.querySelectorAll("[data-speed]").forEach(x => x.setAttribute("aria-pressed", x===b));
+}));
+$("sound").addEventListener("click", soundToggle);
+
+/* ======================= logbook ======================= */
+function bestShip(){ const l = S.ships.filter(s=>s && s.t0<=S.t); return l.sort((a,b)=>b.vol-a.vol)[0] || null; }
+const stateName = {afloat:"afloat", sinking:"taking water", wreck:"on the seabed", graduated:"graduated"};
+
+function dossierHtml(s){
+  if (!s.dev) return "";
+  const d = s.dossier || {};
+  const twins = S.ships.filter(x => x && x.t0<=S.t && x!==s && (x.sym||"").toLowerCase()===(s.sym||"").toLowerCase()).length;
+  const chips = []; let lines = [];
+  if (d.loading) lines.push("Reading the captain's log…");
+  else if (d.error || d.n==null) lines.push("The captain's log could not be read.");
+  else {
+    if (d.n <= 1){ chips.push(`<span class="chip warn">Fresh wallet</span>`); lines.push(`This is the captain's only launch in the last ${daysTxt()}.`); }
+    else { chips.push(`<span class="chip ${d.n>=5?"bad":"warn"}">${d.n>=5?"Serial launcher":"Has launched before"}</span>`); lines.push(`The captain launched ${d.n} tokens in the last ${daysTxt()}.`); }
+    if (d.inE > 0 || d.outE > 0){
+      lines.push(`On their own ships the captain bought ${fmt(d.inE,3)} ETH and sold ${fmt(d.outE,3)} ETH.`);
+      if (d.outE >= d.inE*0.8 && d.outE > 0) chips.push(`<span class="chip bad">Jumped ship</span>`);
+      else if (d.outE === 0) chips.push(`<span class="chip good">Still aboard</span>`);
+      else chips.push(`<span class="chip warn">Sold part</span>`);
+    } else lines.push("The captain bought none of their own ships.");
+  }
+  if (twins) { chips.push(`<span class="chip bad">Copycat ticker</span>`); lines.push(`${twins} other ship${twins>1?"s in this bay fly":" in this bay flies"} the same ticker.`); }
+  return `<div class="dossier"><h3>Captain <a class="mono" href="${CONFIG.EXPLORER}/address/${s.dev}" target="_blank" rel="noopener">${short(s.dev)}</a></h3>
+    <div class="chips">${chips.join("")}</div>${lines.map(l=>`<p>${l}</p>`).join("")}</div>`;
+}
+function shipCard(s){
+  const pct = Math.min(100, s.net/CONFIG.GRAD*100);
+  return `
+    <div class="nm">${esc(s.sym||"?")}</div><span class="state st-${s.state}">${stateName[s.state]}</span>
+    <div class="full">${esc(s.name||"")}${s.flagship?" · the lighthouse token":""}</div>
+    <div class="facts">
+      <div><b>${fmt(s.vol)}</b><span>ETH volume</span></div>
+      <div><b>${fmt(s.inE,2)}/${fmt(s.outE,2)}</b><span>ETH in / out</span></div>
+      <div><b class="${s.sharks.size?"neg":""}">${s.sharks.size}</b><span>sharks</span></div>
+      <div><b>${ago(S.t - s.t0)}</b><span>since launch</span></div>
+    </div>
+    <div class="prog"><div class="bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+      <div class="lbl"><span>${fmt(s.net)} ETH in the curve</span><span>graduates at ${CONFIG.GRAD} ETH</span></div></div>
+    ${dossierHtml(s)}
+    <div class="links">
+      <button class="btn" type="button" id="pcBtn">Make a postcard</button>
+      <a href="${CONFIG.PONS}${s.token}" target="_blank" rel="noopener">Open on Pons ↗</a>
+      <a href="${CONFIG.EXPLORER}/token/${s.token}" target="_blank" rel="noopener">Token ↗</a>
+      <span class="mono" style="color:var(--parchment-dim)">last trade ${ago(S.t - s.last)} ago</span>
+    </div>`;
+}
+function sharkCard(a){
+  const tr = S.traders.get(a); if (!tr) return "";
+  const delays = tr.bites.map(b=>b.delay);
+  const rows = []; let inM=0, outM=0; const holds=[];
+  const seen = new Set();
+  for (const b of tr.bites){
+    const x = tr.exits.get(b.ship);
+    if (!seen.has(b.ship)){ seen.add(b.ship); if (x){ holds.push(x.t - b.t); } }
+    rows.push({b, x});
+  }
+  for (const s of seen){ const bb = tr.bites.filter(b=>b.ship===s).reduce((p,b)=>p+b.eth,0); inM += bb; const x = tr.exits.get(s); if (x) outM += x.out; }
+  const res = outM - inM;
+  const bot = tr.bites.length>=5 && median(delays)<=2;
+  return `
+    <div class="nm mono" style="font-size:26px">${short(a)}</div><span class="state st-shark">shark</span>
+    <div class="full">${bot?"Bites fast and often. Almost certainly a bot.":"Bought within three seconds of a launch."}</div>
+    <div class="facts">
+      <div><b>${tr.bites.length}</b><span>bites</span></div>
+      <div><b>${median(delays)!=null?Math.round(median(delays))+"s":"–"}</b><span>median delay</span></div>
+      <div><b>${holds.length?ago(median(holds)):"–"}</b><span>median hold</span></div>
+      <div><b class="${res>=0?"pos":"neg"}">${res>=0?"+":""}${fmt(res,3)}</b><span>ETH result</span></div>
+    </div>
+    <div class="bites tablewrap"><table><thead><tr><th>Ship</th><th class="r">Delay</th><th class="r">Bitten</th><th class="r">Taken out</th><th class="r">Held</th></tr></thead>
+      <tbody>${rows.slice(-12).reverse().map(({b,x})=>`<tr><td>${esc(b.ship.sym)}</td><td class="r">${Math.round(b.delay)}s</td><td class="r">${fmt(b.eth,3)}</td>
+        <td class="r">${x?fmt(x.out,3):"holding"}</td><td class="r">${x?ago(x.t-b.t):"–"}</td></tr>`).join("")}</tbody></table></div>
+    <div class="links"><a href="${CONFIG.EXPLORER}/address/${a}" target="_blank" rel="noopener">Wallet on explorer ↗</a>
+      <span class="mono" style="color:var(--parchment-dim)">${S.mode==="replay"?"within this recording":"since the bay opened"}</span>
+      <button class="hbtn" type="button" id="backShip">Back to ship</button></div>`;
+}
+function epitaph(s){
+  const d = s.dossier||{};
+  if (d.outE && d.inE && d.outE >= d.inE*0.8) return "Her captain was first into the lifeboat.";
+  if (s.sharks.size >= 8) return "Eaten alive in the first three seconds.";
+  if (s.vol < 0.15) return "Nobody came aboard.";
+  if (s.vol > 3) return "She carried a fortune, briefly.";
+  if (s.wreckAt - s.t0 < 900) return "Gone before the tide turned.";
+  return "She had a good run.";
+}
+function renderBook(force){
+  const live = S.mode==="live";
+  if (S.selShark && S.traders.has(S.selShark)){
+    $("cardTitle").textContent = "Shark profile"; $("cardSub").textContent = "Every bite this wallet took in view, and what it took back out.";
+    $("card").innerHTML = sharkCard(S.selShark);
+    $("backShip")?.addEventListener("click", ()=>{ S.selShark=null; renderBook(true); });
+  } else if (S.selected){
+    $("cardTitle").textContent = "The selected ship"; $("cardSub").textContent = "Click any ship in the bay, any row in a register, or a gravestone.";
+    $("card").innerHTML = shipCard(S.selected);
+    $("pcBtn")?.addEventListener("click", ()=>openPostcard(S.selected));
+  } else $("card").innerHTML = `<p class="sub">Waiting for the first ship…</p>`;
+
+  const visible = S.ships.filter(x=>x && x.t0<=S.t);
+  const fleet = [...visible].sort((a,b)=>b.vol-a.vol).slice(0,14);
+  const col = {afloat:"var(--kelp)",sinking:"var(--shark)",wreck:"var(--parchment-dim)",graduated:"var(--brass)"};
+  $("fleet").innerHTML = fleet.map(x=>`<tr data-i="${S.ships.indexOf(x)}" class="${x===S.selected&&!S.selShark?"sel":""}" tabindex="0">
+      <td>${x===S.tracked?"◉ ":""}${esc(x.sym||"?")}</td><td><span class="dot" style="background:${col[x.state]}"></span>${stateName[x.state]}</td>
+      <td class="r">${fmt(x.vol)}</td><td class="r">${fmt(x.net)}</td><td class="r ${x.sharks.size?"neg":""}">${x.sharks.size}</td><td class="r">${ago(S.t-x.t0)}</td></tr>`).join("");
+
+  const sharks = [...S.traders.values()].filter(t=>t.bites.length).sort((a,b)=>b.bites.length-a.bites.length || b.inE-a.inE).slice(0,10);
+  $("sharks").innerHTML = sharks.length ? sharks.map(t=>{
+    let inM=0,outM=0; const ships=new Set(t.bites.map(b=>b.ship));
+    for (const s of ships){ inM += t.bites.filter(b=>b.ship===s).reduce((p,b)=>p+b.eth,0); const x=t.exits.get(s); if(x) outM+=x.out; }
+    const bal = outM - inM;
+    return `<tr data-a="${t.addr}" class="${S.selShark===t.addr?"sel":""}" tabindex="0"><td class="mono">${short(t.addr)}</td>
+      <td class="r">${t.bites.length}</td><td class="r">${fmt(inM,3)}</td><td class="r">${fmt(outM,3)}</td>
+      <td class="r ${bal>=0?"pos":"neg"}">${bal>=0?"+":""}${fmt(bal,3)}</td></tr>`; }).join("")
+    : `<tr><td colspan="5" style="color:var(--parchment-dim)">No bites yet in this window.</td></tr>`;
+
+  const wrecks = visible.filter(s=>s.state==="wreck").sort((a,b)=>b.vol-a.vol).slice(0,8);
+  $("graves").innerHTML = wrecks.length ? wrecks.map(s=>`<div class="grave" data-i="${S.ships.indexOf(s)}" tabindex="0" role="button" aria-label="Wreck of ${esc(s.sym)}">
+      <small>Here lies</small><b>${esc(s.sym)}</b>
+      <span class="ep">${epitaph(s)}</span>
+      <span class="stats">${clockTxt(S.base+s.t0)} – ${clockTxt(S.base+s.wreckAt)} · ${fmt(s.vol)} ETH · ${s.sharks.size} shark${s.sharks.size===1?"":"s"}</span></div>`).join("")
+    : `<p class="sub">No wrecks yet. Give it ten quiet minutes.</p>`;
+
+  if (logDirty || force){
+    const items = S.log.filter(l=>l.t<=S.t).slice(-50).reverse();
+    const tagName = {launch:"launch",snipe:"shark",sank:"sank",grad:"graduated",salvage:"salvaged",light:"lighthouse"};
+    $("log").innerHTML = items.map(l=>`<li class="${S.tracked && l.ship===S.tracked?"mine":""}"><time>${clockTxt(S.base+l.t)}</time><span class="tag t-${l.kind}">${tagName[l.kind]}</span><span>${l.html}</span></li>`).join("");
+    logDirty = false;
+  }
+}
+function rowAct(e, fn){ const tr = e.target.closest("[data-i],[data-a]"); if (tr) fn(tr); }
+const pickShip = tr => selectShip(S.ships[+tr.dataset.i]);
+$("fleet").addEventListener("click", e => rowAct(e, pickShip));
+$("fleet").addEventListener("keydown", e => { if (e.key==="Enter") rowAct(e, pickShip); });
+$("graves").addEventListener("click", e => rowAct(e, pickShip));
+$("graves").addEventListener("keydown", e => { if (e.key==="Enter") rowAct(e, pickShip); });
+$("sharks").addEventListener("click", e => rowAct(e, tr => selectShark(tr.dataset.a)));
+$("sharks").addEventListener("keydown", e => { if (e.key==="Enter") rowAct(e, tr => selectShark(tr.dataset.a)); });
+
+/* ======================= postcards ======================= */
+function openPostcard(s){
+  const c = document.createElement("canvas"); c.width = 1200; c.height = 630; const x = c.getContext("2d");
+  const gr = x.createLinearGradient(0,0,0,630); gr.addColorStop(0,"#050b11"); gr.addColorStop(.55,"#13293a"); gr.addColorStop(.56,"#123447"); gr.addColorStop(1,"#040a10");
+  x.fillStyle = gr; x.fillRect(0,0,1200,630);
+  for (let i=0;i<90;i++){ x.fillStyle=`rgba(233,224,200,${.2+hash("pc"+i)*.5})`; x.fillRect(hash("px"+i)*1200, hash("py"+i)*300, 1.5, 1.5); }
+  x.strokeStyle="rgba(233,224,200,.3)"; x.beginPath(); for(let i=0;i<=1200;i+=6) x.lineTo(i, 348+Math.sin(i*.02)*4); x.stroke();
+  // ship
+  const wreck = s.state==="wreck", sinking = s.state==="sinking";
+  x.save(); x.translate(860, wreck?560:sinking?420:340); x.rotate(wreck?0.6:sinking?0.35:0); x.scale(4.2,4.2);
+  x.fillStyle="#3b2a1c"; x.strokeStyle="rgba(233,224,200,.8)"; x.lineWidth=.6;
+  x.beginPath(); x.moveTo(-17,-4); x.lineTo(17,-4); x.lineTo(12,5); x.lineTo(-14,5); x.closePath(); x.fill(); x.stroke();
+  x.strokeStyle="rgba(233,224,200,.85)"; x.beginPath(); x.moveTo(0,-4); x.lineTo(wreck?6:0, wreck?-20:-40); x.stroke();
+  if (!wreck){ x.fillStyle = s.state==="graduated"||s.flagship ? "#c9a24a" : sinking ? "rgba(214,90,60,.8)" : "rgba(233,224,200,.9)"; x.beginPath(); x.moveTo(1,-38); x.quadraticCurveTo(18,-24,1,-8); x.closePath(); x.fill(); x.beginPath(); x.moveTo(-1,-34); x.quadraticCurveTo(-11,-22,-1,-10); x.closePath(); x.fill(); x.fillStyle = s.sharks.size?"#d65a3c":"#79b394"; x.beginPath(); x.moveTo(0,-40); x.lineTo(6,-38); x.lineTo(0,-36); x.fill(); }
+  x.restore();
+  // sharks
+  const n = Math.min(6, s.sharks.size);
+  for (let i=0;i<n;i++){ const sx = 700+i*48, sy = 420+Math.sin(i)*14; x.fillStyle="#d65a3c"; x.beginPath(); x.ellipse(sx,sy,18,5,0,0,6.28); x.fill(); x.beginPath(); x.moveTo(sx-16,sy); x.lineTo(sx-26,sy-7); x.lineTo(sx-26,sy+7); x.fill(); x.beginPath(); x.moveTo(sx-2,sy-4); x.lineTo(sx+4,sy-13); x.lineTo(sx+7,sy-4); x.fill(); }
+  // sparkline of volume
+  const h = s.hist; if (h.length > 1){
+    const t0 = h[0][0], t1 = Math.max(h[h.length-1][0], t0+1), vmax = Math.max(0.01, h[h.length-1][1]);
+    x.strokeStyle="#c9a24a"; x.lineWidth=3; x.beginPath();
+    h.forEach((p,i)=>{ const px = 64 + (p[0]-t0)/(t1-t0)*480, py = 520 - p[1]/vmax*90; i?x.lineTo(px,py):x.moveTo(px,py); }); x.stroke();
+    x.fillStyle="rgba(233,224,200,.6)"; x.font="500 15px 'IBM Plex Mono', monospace"; x.textAlign="left";
+    x.fillText("cumulative volume", 64, 548);
+  }
+  x.textAlign="left"; x.fillStyle="#e9e0c8";
+  x.font="64px 'IM Fell English SC', Georgia, serif"; x.fillText(s.sym||"?", 60, 120);
+  x.font="italic 26px 'IM Fell English', Georgia, serif"; x.fillStyle="rgba(233,224,200,.75)";
+  const fate = s.state==="wreck" ? `Sank after ${ago(s.wreckAt - s.t0)} at sea.` : s.state==="graduated" ? "Graduated. Sailed off to open water." : s.state==="sinking" ? "Taking on water." : `Afloat for ${ago(S.t - s.t0)}.`;
+  x.fillText(fate, 60, 162);
+  x.font="500 22px 'IBM Plex Mono', monospace"; x.fillStyle="#e9e0c8";
+  const lines = [`${fmt(s.vol)} ETH sailed through her`, `${s.sharks.size} shark${s.sharks.size===1?"":"s"} bit in the first 3s`, `${fmt(s.net)} ETH still in the curve`];
+  lines.forEach((l,i)=>x.fillText(l, 60, 230 + i*38));
+  x.font="500 18px 'IBM Plex Mono', monospace"; x.fillStyle="#c9a24a"; x.fillText(`Shipwreck Bay · ${CONFIG.SITE_URL}`, 60, 600);
+  x.textAlign="right"; x.fillStyle="rgba(233,224,200,.5)"; x.fillText(`Pons · Robinhood Chain · ${clockTxt(S.base+S.t)}`, 1140, 600);
+  const url = c.toDataURL("image/png");
+  $("pcImg").src = url; $("pcDl").href = url; $("pcDl").download = `shipwreck-${(s.sym||"ship").toLowerCase()}.png`;
+  const text = s.state==="wreck" ? `${s.sym} sank after ${ago(s.wreckAt - s.t0)}. ${fmt(s.vol)} ETH sailed through her and ${s.sharks.size} sharks bit in the first three seconds.` : `${s.sym} is ${stateName[s.state]} in Shipwreck Bay: ${fmt(s.vol)} ETH so far, ${s.sharks.size} sharks circling.`;
+  $("pcX").href = `https://x.com/intent/post?text=${encodeURIComponent(text+" https://"+CONFIG.SITE_URL)}`;
+  $("pcHint").textContent = "Attach the image to your post. If the download button does nothing here, right-click the image to save it.";
+  $("modal").classList.add("open"); $("modalClose").focus();
+  $("pcCopy").onclick = async () => { try{ const blob = await (await fetch(url)).blob(); await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]); $("pcCopy").textContent="Copied"; }catch(e){ $("pcCopy").textContent="Copy not allowed here"; } setTimeout(()=>$("pcCopy").textContent="Copy image",1800); };
+}
+$("modalClose").addEventListener("click", ()=>$("modal").classList.remove("open"));
+$("modal").addEventListener("click", e => { if (e.target.id==="modal") $("modal").classList.remove("open"); });
+addEventListener("keydown", e => { if (e.key==="Escape") $("modal").classList.remove("open"); });
+
+/* ======================= $WRECK box ======================= */
+function initToken(){
+  if (CONFIG.TOKEN_CA){
+    $("ca").textContent = CONFIG.TOKEN_CA;
+    const c = $("copyCa"); c.removeAttribute("aria-disabled");
+    c.addEventListener("click", async ()=>{ try{ await navigator.clipboard.writeText(CONFIG.TOKEN_CA); c.textContent="Copied"; }catch(e){ c.textContent="Select and copy above"; } setTimeout(()=>c.textContent="Copy CA",1800); });
+    const b = $("buyPons"); b.href = CONFIG.PONS + CONFIG.TOKEN_CA; b.removeAttribute("aria-disabled"); b.target="_blank"; b.rel="noopener";
+  }
+  if (CONFIG.X_URL){ const x=$("xLink"); x.href=CONFIG.X_URL; x.removeAttribute("aria-disabled"); x.target="_blank"; x.rel="noopener"; }
+}
+
+resize(); boot();
+</script>
+</body>
+</html>
