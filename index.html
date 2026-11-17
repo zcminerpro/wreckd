@@ -204,7 +204,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
       </div>
       <div class="legend">
         <span><em>Sail</em> grows with volume</span>
-        <span><em>10 min</em> of silence sinks a ship</span>
+        <span><em>15 min</em> of silence sinks a ship</span>
         <span><em>4.2 ETH</em> in the curve graduates it</span>
       </div>
     </div>
@@ -247,7 +247,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
 
   <section>
     <h2>Fleet register</h2>
-    <p class="sub">Ships launched in this window, by volume.</p>
+    <p class="sub">Ships launched in the last two hours, by volume.</p>
     <div class="panel tablewrap">
       <table>
         <thead><tr><th>Ship</th><th>CA</th><th>Status</th><th class="r">Volume</th><th class="r">In curve</th><th class="r">Sharks</th><th class="r">Age</th></tr></thead>
@@ -276,7 +276,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
   <div class="about wide">
     <section>
       <h2>How to read the bay</h2>
-      <p>Wreckd listens to the Pons launch factory on Robinhood Chain (chain 4663). Every new token appears as a ship. Each buy fills its sail, each sell lets wind out of it, and when nobody trades for ten minutes the ship takes on water and settles on the seabed, where you can still inspect what it carried.</p>
+      <p>Wreckd listens to the Pons launch factory on Robinhood Chain (chain 4663). Every new token appears as a ship. Each buy fills its sail, each sell lets wind out of it, and when nobody trades for fifteen minutes the ship takes on water and settles on the seabed, where you can still inspect what it carried.</p>
       <p>A ship whose bonding curve holds 4.2 ETH graduates to a DEX and sails off with brass sails. Wallets that buy within three seconds of a launch are drawn as sharks. The weather follows the whole launchpad: a burst of volume brings a storm, a dead hour brings fog. Every ship has a captain, the wallet that launched it, and the captain's dossier shows whether they have launched before and whether they sold their own ship.</p>
       <dl class="key">
         <dt>Read-only</dt><dd>No wallet connection, no keys, no transactions. Everything comes from the public Robinhood Chain RPC.</dd>
@@ -333,9 +333,9 @@ const CONFIG = {
   T_LAUNCH: "0x8d4aad4953d0ca700d468f3753aa14432d1b35b43ec6409f051fb6aa43a89607",
   T_BUY: "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
   T_SELL: "0x8113d738abdcb6b38357e9d53a54a7157861a09031b453651f0fe7fe151f59df",
-  BACKFILL_MIN: 45,        // live: how far back to look on load
+  BACKFILL_MIN: 120,       // live: how far back to look on load (two hours of launches)
   DOSSIER_BLOCKS: 3000000, // live: captain history depth (about 3.5 days)
-  IDLE: 600,               // seconds without trades before a ship starts sinking
+  IDLE: 900,               // seconds without trades before a ship starts sinking
   SINK: 120,               // seconds a sinking ship takes to reach the seabed
   GRAD: 4.2,               // ETH in the curve at graduation
   SNIPE_SEC: 3             // a buy within this many seconds of launch is a shark bite
@@ -380,7 +380,7 @@ function addShip(o, index){
   const h = hash(o.curve);
   const ship = Object.assign({
     vol:0, net:0, inE:0, outE:0, last:o.t0, state:"afloat", sinkAt:null, gradAt:null, wreckAt:null,
-    sharks:new Set(), hist:[[o.t0,0,0]], lane: Math.floor(hash(o.curve+"l")*3), xr: 0.04 + h*0.86, phase: h*6.28
+    sharks:new Set(), hist:[[o.t0,0,0]], lane: Math.floor(hash(o.curve+"l")*4), xr: 0.03 + h*0.88, phase: h*6.28
   }, o);
   if (index!=null) S.ships[index] = ship; else S.ships.push(ship);
   S.byCurve.set(o.curve, ship); S.byToken.set(o.token.toLowerCase(), ship);
@@ -484,7 +484,7 @@ async function startReplay(){
   S.replay = {D, ev, span: D.to - D.from};
   S.base = D.from; S.tEnd = S.replay.span;
   $("scrub").max = Math.round(S.tEnd);
-  seek(Math.min(900, S.tEnd*0.25));
+  seek(Math.min(2100, S.tEnd*0.55));
   return true;
 }
 function seek(target){
@@ -719,9 +719,9 @@ const geo = () => ({surface: H*0.45, bed: H*0.79});
 let waveAmp = 1;
 function waveY(x, t, lane){
   const g = geo(); const amp = (reduced?1:3.2) * waveAmp;
-  return g.surface - lane*16 + Math.sin(x*0.012 + t*0.9 + lane)*amp + Math.sin(x*0.031 - t*1.3)*amp*0.5;
+  return g.surface - lane*13 + Math.sin(x*0.012 + t*0.9 + lane)*amp + Math.sin(x*0.031 - t*1.3)*amp*0.5;
 }
-function shipScale(s){ return 0.55 + Math.min(1.7, Math.sqrt(s.vol)*0.55); }
+function shipScale(s){ return 0.5 + Math.min(1.6, Math.sqrt(s.vol)*0.5); }
 const easeIn = p => p*p*(3-2*p);
 function shipPos(s, now){
   const g = geo(); const x = s.xr*W + Math.sin(now*0.05 + s.phase)*8;
@@ -831,7 +831,7 @@ function drawShip(s, now){
   const k = shipScale(s); const Ln = 34*k;
   const grad = s.state==="graduated", wreck = s.state==="wreck";
   const sel = S.selected===s, hov = S.hover===s, trk = S.tracked===s;
-  ctx.save(); ctx.translate(x,y); ctx.rotate(tilt); ctx.globalAlpha = alpha * (s.lane===0?1:s.lane===1?.85:.7);
+  ctx.save(); ctx.translate(x,y); ctx.rotate(tilt); ctx.globalAlpha = alpha * [1,.88,.76,.64][s.lane];
   ctx.fillStyle = wreck ? "#2a241c" : "#3b2a1c";
   ctx.strokeStyle = sel||trk ? "#c9a24a" : hov ? "#e9e0c8" : "rgba(233,224,200,.55)"; ctx.lineWidth = sel||trk?2:1;
   ctx.beginPath(); ctx.moveTo(-Ln/2,-Ln*0.12); ctx.lineTo(Ln/2,-Ln*0.12); ctx.lineTo(Ln*0.36,Ln*0.16); ctx.lineTo(-Ln*0.4,Ln*0.16); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -959,9 +959,9 @@ function frame(nowMs){
   ctx.clearRect(0,0,W,H);
   drawBackground(now);
   const list = S.ships.filter(s => s && s.t0 <= S.t);
-  labelSet = new Set(list.filter(s=>s.state!=="wreck").sort((a,b)=>b.vol-a.vol).slice(0, W<700?4:8));
+  labelSet = new Set(list.filter(s=>s.state!=="wreck").sort((a,b)=>b.vol-a.vol).slice(0, W<700?5:10));
   for (const s of list) if (s.state==="wreck") drawShip(s, now);
-  for (const lane of [2,1,0]) for (const s of list) if (s.state!=="wreck" && s.lane===lane) drawShip(s, now);
+  for (const lane of [3,2,1,0]) for (const s of list) if (s.state!=="wreck" && s.lane===lane) drawShip(s, now);
   S.fins = S.fins.filter(f => drawShark(f, nowMs, now));
   drawFx(nowMs, now);
   drawWeatherFront(nowMs, now);
@@ -1148,7 +1148,7 @@ function renderBook(force){
       <span class="ep">${epitaph(s)}</span>
       <button class="ca-mini" type="button" data-copy="${s.token}" title="Copy ${s.token}">CA ${short(s.token)}</button>
       <span class="stats">${clockTxt(S.base+s.t0)} – ${clockTxt(S.base+s.wreckAt)} · ${fmt(s.vol)} ETH · ${s.sharks.size} shark${s.sharks.size===1?"":"s"}</span></div>`).join("")
-    : `<p class="sub">No wrecks yet. Give it ten quiet minutes.</p>`;
+    : `<p class="sub">No wrecks yet. Give it fifteen quiet minutes.</p>`;
 
   if (logDirty || force){
     const items = S.log.filter(l=>l.t<=S.t).slice(-50).reverse();
