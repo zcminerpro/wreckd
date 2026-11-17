@@ -1,4 +1,4 @@
-# Shipwreck Bay
+# Wreckd
 
 A live cross-section of the Pons launchpad on Robinhood Chain (chain 4663).
 Every launch sets sail, sails grow with volume, ten minutes of silence sinks a ship,

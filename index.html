@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Shipwreck Bay</title>
+<title>Wreckd</title>
 <meta name="description" content="A live cross-section of the Pons launchpad on Robinhood Chain. Every launch sets sail, silence sinks it, and the sharks are the snipers.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -159,7 +159,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
   <div class="hud">
     <div class="hud-row">
       <div class="brand">
-        <h1>Shipwreck Bay</h1>
+        <h1>Wreckd</h1>
         <p>Every Pons launch sets sail. Most of them sink. The sharks bite in the first three seconds.</p>
       </div>
       <div class="status">
@@ -249,7 +249,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
   <div class="about wide">
     <section>
       <h2>How to read the bay</h2>
-      <p>Shipwreck Bay listens to the Pons launch factory on Robinhood Chain (chain 4663). Every new token appears as a ship. Each buy fills its sail, each sell lets wind out of it, and when nobody trades for ten minutes the ship takes on water and settles on the seabed, where you can still inspect what it carried.</p>
+      <p>Wreckd listens to the Pons launch factory on Robinhood Chain (chain 4663). Every new token appears as a ship. Each buy fills its sail, each sell lets wind out of it, and when nobody trades for ten minutes the ship takes on water and settles on the seabed, where you can still inspect what it carried.</p>
       <p>A ship whose bonding curve holds 4.2 ETH graduates to a DEX and sails off with brass sails. Wallets that buy within three seconds of a launch are drawn as sharks. The weather follows the whole launchpad: a burst of volume brings a storm, a dead hour brings fog. Every ship has a captain, the wallet that launched it, and the captain's dossier shows whether they have launched before and whether they sold their own ship.</p>
       <dl class="key">
         <dt>Read-only</dt><dd>No wallet connection, no keys, no transactions. Everything comes from the public Robinhood Chain RPC.</dd>
@@ -269,7 +269,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
   </div>
 
   <footer class="wide">
-    <span>Shipwreck Bay · data from Robinhood Chain RPC · Pons launchpad</span>
+    <span>Wreckd · data from Robinhood Chain RPC · Pons launchpad</span>
     <span id="foot">&nbsp;</span>
   </footer>
 </main>
@@ -281,7 +281,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
     <div class="row">
       <div class="btns">
         <button class="btn" type="button" id="pcCopy">Copy image</button>
-        <a class="btn" id="pcDl" download="shipwreck-bay.png" href="#">Download PNG</a>
+        <a class="btn" id="pcDl" download="wreckd.png" href="#">Download PNG</a>
         <a class="btn solid" id="pcX" href="#" target="_blank" rel="noopener">Post on X</a>
       </div>
       <span class="hint" id="pcHint">Attach the image to your post.</span>
@@ -294,8 +294,8 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
 /* ======================= configuration ======================= */
 const CONFIG = {
   TOKEN_CA: "",            // $WRECK contract, fill after launch
-  X_URL: "",               // e.g. https://x.com/shipwreckbay
-  SITE_URL: "shipwreckbay.xyz",
+  X_URL: "",               // e.g. https://x.com/wreckd_xyz
+  SITE_URL: "wreckd.xyz",
   RPC: "https://rpc.mainnet.chain.robinhood.com",
   EXPLORER: "https://robinhoodchain.blockscout.com",
   PONS: "https://ponsfamily.com/launchpad/",
@@ -629,7 +629,7 @@ async function boot(){
   try { await startLive(); }
   catch(e){ console.warn("Live feed unavailable, showing the recording:", e); S.liveErr = true; await startReplay(); }
   initToken();
-  const saved = load("swb-spy"); if (saved){ $("spyIn").value = saved; spyglass(saved, true); }
+  const saved = load("wreckd-spy"); if (saved){ $("spyIn").value = saved; spyglass(saved, true); }
   last = performance.now(); requestAnimationFrame(frame);
 }
 
@@ -963,14 +963,14 @@ function selectShark(a){ S.selShark = a; renderBook(true); }
 // spyglass
 function spyglass(q, quiet){
   q = q.trim(); const msg = $("spyMsg");
-  if (!q){ S.tracked=null; S.trackedTok=null; store("swb-spy",null); msg.textContent=""; return; }
+  if (!q){ S.tracked=null; S.trackedTok=null; store("wreckd-spy",null); msg.textContent=""; return; }
   let ship = null;
   if (/^0x[0-9a-fA-F]{40}$/.test(q)) ship = S.byToken.get(q.toLowerCase()) || S.byCurve.get(q.toLowerCase());
   else { const m = S.ships.filter(s=>s && s.t0<=S.t && (s.sym||"").toLowerCase()===q.replace(/^\$/,"").toLowerCase()); ship = m.sort((a,b)=>b.vol-a.vol)[0]; }
-  if (ship){ track(ship); msg.textContent = `Tracking ${ship.sym}. Its events are highlighted in the log.`; store("swb-spy", q); return; }
+  if (ship){ track(ship); msg.textContent = `Tracking ${ship.sym}. Its events are highlighted in the log.`; store("wreckd-spy", q); return; }
   if (S.mode==="live" && /^0x[0-9a-fA-F]{40}$/.test(q)){
     msg.textContent = "Not in view. Searching the last 3½ days of launches…";
-    fetchToken(q).then(s => { if (s){ track(s); msg.textContent = `Found ${s.sym}. It sails in from earlier.`; store("swb-spy", q); } else msg.textContent = "No Pons launch with that address in the last 3½ days."; })
+    fetchToken(q).then(s => { if (s){ track(s); msg.textContent = `Found ${s.sym}. It sails in from earlier.`; store("wreckd-spy", q); } else msg.textContent = "No Pons launch with that address in the last 3½ days."; })
       .catch(()=> msg.textContent = "The RPC did not answer. Try again in a moment.");
     return;
   }
@@ -1159,11 +1159,11 @@ function openPostcard(s){
   x.font="500 22px 'IBM Plex Mono', monospace"; x.fillStyle="#e9e0c8";
   const lines = [`${fmt(s.vol)} ETH sailed through her`, `${s.sharks.size} shark${s.sharks.size===1?"":"s"} bit in the first 3s`, `${fmt(s.net)} ETH still in the curve`];
   lines.forEach((l,i)=>x.fillText(l, 60, 230 + i*38));
-  x.font="500 18px 'IBM Plex Mono', monospace"; x.fillStyle="#c9a24a"; x.fillText(`Shipwreck Bay · ${CONFIG.SITE_URL}`, 60, 600);
+  x.font="500 18px 'IBM Plex Mono', monospace"; x.fillStyle="#c9a24a"; x.fillText(`Wreckd · ${CONFIG.SITE_URL}`, 60, 600);
   x.textAlign="right"; x.fillStyle="rgba(233,224,200,.5)"; x.fillText(`Pons · Robinhood Chain · ${clockTxt(S.base+S.t)}`, 1140, 600);
   const url = c.toDataURL("image/png");
-  $("pcImg").src = url; $("pcDl").href = url; $("pcDl").download = `shipwreck-${(s.sym||"ship").toLowerCase()}.png`;
-  const text = s.state==="wreck" ? `${s.sym} sank after ${ago(s.wreckAt - s.t0)}. ${fmt(s.vol)} ETH sailed through her and ${s.sharks.size} sharks bit in the first three seconds.` : `${s.sym} is ${stateName[s.state]} in Shipwreck Bay: ${fmt(s.vol)} ETH so far, ${s.sharks.size} sharks circling.`;
+  $("pcImg").src = url; $("pcDl").href = url; $("pcDl").download = `wreckd-${(s.sym||"ship").toLowerCase()}.png`;
+  const text = s.state==="wreck" ? `${s.sym} sank after ${ago(s.wreckAt - s.t0)}. ${fmt(s.vol)} ETH sailed through her and ${s.sharks.size} sharks bit in the first three seconds.` : `${s.sym} is ${stateName[s.state]} in Wreckd: ${fmt(s.vol)} ETH so far, ${s.sharks.size} sharks circling.`;
   $("pcX").href = `https://x.com/intent/post?text=${encodeURIComponent(text+" https://"+CONFIG.SITE_URL)}`;
   $("pcHint").textContent = "Attach the image to your post. If the download button does nothing here, right-click the image to save it.";
   $("modal").classList.add("open"); $("modalClose").focus();
