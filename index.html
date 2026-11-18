@@ -42,6 +42,13 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .brand h1{font-family:var(--font-display);font-weight:400;font-size:clamp(34px,5.2vw,64px);line-height:.95;margin:0;letter-spacing:.01em;text-wrap:balance;text-shadow:0 2px 18px rgba(0,0,0,.6)}
 .brand h1.wm{display:flex;align-items:center;gap:.18em}
 .brand p{margin:10px 0 0;max-width:34ch;font-style:italic;color:var(--parchment-dim);font-size:clamp(15px,1.5vw,18px);text-shadow:0 1px 10px rgba(0,0,0,.8)}
+.toplinks{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;pointer-events:auto}
+.toplinks .tl{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-data);font-size:12px;letter-spacing:.04em;padding:7px 11px;border:1px solid var(--rule);background:rgba(6,13,19,.6);backdrop-filter:blur(4px);color:var(--parchment);text-decoration:none;cursor:pointer;min-height:34px}
+.toplinks .tl:hover{border-color:var(--brass)}
+.toplinks .tl .lbl{color:var(--brass);letter-spacing:.12em;text-transform:uppercase;font-size:10px}
+.toplinks .tl[disabled]{cursor:default;color:var(--parchment-dim)}
+.toplinks .tl[disabled]:hover{border-color:var(--rule)}
+.toplinks .tl.x b{font-family:var(--font-display);font-weight:400;font-size:15px;line-height:1}
 .status{display:flex;flex-direction:column;align-items:flex-end;gap:10px;margin-right:clamp(60px,8vw,110px)}
 .pill{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-data);font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border:1px solid var(--rule);background:rgba(6,13,19,.55);backdrop-filter:blur(4px)}
 .pill i{width:8px;height:8px;border-radius:50%;background:var(--kelp);box-shadow:0 0 10px var(--kelp)}
@@ -197,6 +204,10 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
       <div class="brand">
         <h1 class="wm"><svg width="0.92em" height="0.92em" viewBox="0 0 400 400" aria-hidden="true" style="flex:none;display:block"><defs><clipPath id="hma"><rect width="400" height="232"/></clipPath><clipPath id="hmb"><rect y="232" width="400" height="168"/></clipPath></defs><text x="200" y="300" text-anchor="middle" font-family="IM Fell English SC, Georgia, serif" font-size="260" fill="#e9e0c8" clip-path="url(#hma)">W</text><text x="200" y="300" text-anchor="middle" font-family="IM Fell English SC, Georgia, serif" font-size="260" fill="#1d4257" clip-path="url(#hmb)">W</text><line x1="60" y1="232" x2="340" y2="232" stroke="#c9a24a" stroke-width="10" stroke-linecap="round"/></svg><span>Wreckd</span></h1>
         <p>Every Pons launch sets sail. Most of them sink. The sharks bite in the first three seconds.</p>
+        <div class="toplinks">
+          <button class="tl" id="caTop" type="button" disabled title="$WRECK contract address"><span class="lbl">$WRECK CA</span><span id="caTopTxt">launching soon</span></button>
+          <a class="tl x" id="xTop" href="https://x.com/usewreckd" target="_blank" rel="noopener"><b>X</b><span>@usewreckd</span></a>
+        </div>
       </div>
       <div class="status">
         <span class="pill" id="mode"><i></i><span id="modeTxt">Connecting to Robinhood Chain…</span></span>
@@ -346,7 +357,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
 /* ======================= configuration ======================= */
 const CONFIG = {
   TOKEN_CA: "",            // $WRECK contract, fill after launch
-  X_URL: "",               // e.g. https://x.com/wreckd_xyz
+  X_URL: "https://x.com/usewreckd",
   SITE_URL: "wreckd.xyz",
   RPC: "https://rpc.mainnet.chain.robinhood.com",
   EXPLORER: "https://robinhoodchain.blockscout.com",
@@ -359,6 +370,7 @@ const CONFIG = {
   T_XFER: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", // ERC-20 Transfer
   DEAD: "0x000000000000000000000000000000000000dead",
   SUPPLY: 1e9,             // every Pons token is minted with 1,000,000,000 supply
+  LOG_SPAN: 100000,       // blocks per eth_getLogs call (address-filtered queries allow large ranges)
   BACKFILL_MIN: 120,       // live: how far back to look on load (two hours of launches)
   DOSSIER_BLOCKS: 3000000, // live: captain history depth (about 3.5 days)
   IDLE: 900,               // seconds without trades before a ship starts sinking
@@ -571,14 +583,28 @@ function advanceTo(t){
 }
 
 /* ======================= live mode ======================= */
-async function rpc(method, params, timeout=8000){
+// The public RPC rate-limits bursts, and its rate-limit answers carry a broken CORS header that the
+// browser reports as a plain network error. So every call is retried with a growing pause.
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+async function rpcOnce(method, params, timeout){
   const ac = new AbortController(); const to = setTimeout(()=>ac.abort(), timeout);
   try{
     const r = await fetch(CONFIG.RPC,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params}),signal:ac.signal});
-    const j = await r.json(); if (j.error) throw new Error(j.error.message); return j.result;
+    const j = await r.json();
+    if (j.error){ const e = new Error(j.error.message); e.rpc = !/rate|limit|busy|timeout|429/i.test(j.error.message||""); throw e; }
+    return j.result;
   } finally { clearTimeout(to); }
 }
+async function rpc(method, params, timeout=8000, tries=4){
+  for (let k=0;;k++){
+    try { return await rpcOnce(method, params, timeout); }
+    catch(e){ if (e.rpc || k >= tries-1) throw e; await sleep(700 * 2**k + Math.random()*300); }
+  }
+}
 async function rpcBatch(calls){
+  for (let k=0;k<3;k++){ try { return await rpcBatchOnce(calls); } catch(e){ if (k===2) throw e; await sleep(800 * 2**k); } }
+}
+async function rpcBatchOnce(calls){
   const r = await fetch(CONFIG.RPC,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(calls.map((c,i)=>({jsonrpc:"2.0",id:i,method:c[0],params:c[1]})))});
   const j = await r.json(); const out=[]; (Array.isArray(j)?j:[]).forEach(x=>out[x.id]=x.result); return out;
 }
@@ -608,8 +634,7 @@ const blockT = b => (L.headTs - (L.head - b)*L.rate) - S.base;
 
 async function startLive(){
   let head;
-  try { head = parseInt(await rpc("eth_blockNumber",[],6000),16); }
-  catch(e){ await new Promise(r=>setTimeout(r,1500)); head = parseInt(await rpc("eth_blockNumber",[],8000),16); }
+  head = parseInt(await rpc("eth_blockNumber",[],6000,3),16);
   const [hb, ob] = await Promise.all([rpc("eth_getBlockByNumber",[hex(head),false]), rpc("eth_getBlockByNumber",[hex(head-20000),false])]);
   L.head = head; L.headTs = parseInt(hb.timestamp,16);
   L.rate = Math.max(0.02, (L.headTs - parseInt(ob.timestamp,16)) / 20000);
@@ -618,13 +643,14 @@ async function startLive(){
   setMode("live","Live · Robinhood Chain");
   $("timeCtl").style.display = "none";
   S.silent = true;
-  await ingest(head-back, head);
+  try { await ingest(head-back, head); }
+  catch(e){ console.warn("Backfill incomplete, the bay fills from new blocks:", e); }
   if (CONFIG.TOKEN_CA) await lightTheLighthouse();
   stepStates(S.t); S.silent = false;
   S.selected = bestShip(); renderBook(true);
-  setInterval(poll, 4000);
+  setInterval(poll, 5000);
 }
-async function getLogsChunked(from, to, filter, step=12000){
+async function getLogsChunked(from, to, filter, step=CONFIG.LOG_SPAN){
   let out = [];
   for (let s=from; s<=to; s+=step){
     const e = Math.min(to, s+step-1);
@@ -645,13 +671,13 @@ async function ingest(from, to){
   if (fresh.length) nameShips(fresh);
   const active = S.ships.filter(s => s.state!=="wreck" || S.t - (s.wreckAt||0) < 1800 || L.extra.has(s.curve)).map(s=>s.curve);
   let trades = [];
-  for (let i=0;i<active.length;i+=25){
-    trades = trades.concat(await getLogsChunked(from, to, {address:active.slice(i,i+25), topics:[[CONFIG.T_BUY, CONFIG.T_SELL]]}));
+  for (let i=0;i<active.length;i+=150){
+    trades = trades.concat(await getLogsChunked(from, to, {address:active.slice(i,i+150), topics:[[CONFIG.T_BUY, CONFIG.T_SELL]]}));
   }
   // burns: any transfer of a tracked token to 0x…dEaD or to the zero address
   const tokens = S.ships.filter(s => s.state!=="wreck" || S.t - (s.wreckAt||0) < 1800 || L.extra.has(s.curve)).map(s=>s.token);
-  for (let i=0;i<tokens.length;i+=25){
-    try{ trades = trades.concat(await getLogsChunked(from, to, {address:tokens.slice(i,i+25), topics:[CONFIG.T_XFER, null, [padTopic(ZERO), padTopic(CONFIG.DEAD)]]})); }catch(e){}
+  for (let i=0;i<tokens.length;i+=150){
+    try{ trades = trades.concat(await getLogsChunked(from, to, {address:tokens.slice(i,i+150), topics:[CONFIG.T_XFER, null, [padTopic(ZERO), padTopic(CONFIG.DEAD)]]})); }catch(e){}
   }
   applyLogs(trades);
 }
@@ -697,8 +723,10 @@ async function poll(){
     const head = parseInt(await rpc("eth_blockNumber",[]),16);
     if (head > L.head){
       const hb = await rpc("eth_getBlockByNumber",[hex(head),false]);
-      const from = L.head + 1; L.head = head; L.headTs = parseInt(hb.timestamp,16);
-      await ingest(from, head);
+      const from = L.head + 1, prevHead = L.head, prevTs = L.headTs;
+      L.head = head; L.headTs = parseInt(hb.timestamp,16);
+      try { await ingest(from, head); }
+      catch(e){ L.head = prevHead; L.headTs = prevTs; } // read these blocks again on the next poll
     }
   }catch(e){}
   L.polling = false;
@@ -1489,7 +1517,17 @@ $("modal").addEventListener("click", e => { if (e.target.id==="modal") $("modal"
 addEventListener("keydown", e => { if (e.key==="Escape") $("modal").classList.remove("open"); });
 
 /* ======================= $WRECK box ======================= */
+function initTop(){
+  if (CONFIG.X_URL){ $("xTop").href = CONFIG.X_URL; const h = CONFIG.X_URL.split("/").filter(Boolean).pop(); $("xTop").querySelector("span").textContent = "@"+h; }
+  if (!CONFIG.TOKEN_CA) return;
+  const b = $("caTop"), t = $("caTopTxt");
+  b.disabled = false; b.title = "Copy " + CONFIG.TOKEN_CA;
+  const show = () => t.textContent = innerWidth < 700 ? short(CONFIG.TOKEN_CA) : CONFIG.TOKEN_CA;
+  show(); addEventListener("resize", show);
+  b.addEventListener("click", async ()=>{ try{ await navigator.clipboard.writeText(CONFIG.TOKEN_CA); t.textContent = "Copied"; }catch(e){ t.textContent = CONFIG.TOKEN_CA; } setTimeout(show, 1400); });
+}
 function initToken(){
+  initTop();
   if (CONFIG.TOKEN_CA){
     $("ca").textContent = CONFIG.TOKEN_CA;
     const c = $("copyCa"); c.removeAttribute("aria-disabled");
