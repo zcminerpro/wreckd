@@ -214,7 +214,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
       </div>
       <div class="status">
         <div class="toplinks">
-          <button class="tl" id="caTop" type="button" disabled title="$WRECK contract address"><span class="lbl">$WRECK CA</span><span id="caTopTxt">launching soon</span></button>
+          <button class="tl" id="caTop" type="button" disabled title="$WRECKD contract address"><span class="lbl">$WRECKD CA</span><span id="caTopTxt">launching soon</span></button>
           <a class="tl x" id="xTop" href="https://x.com/usewreckd" target="_blank" rel="noopener"><b>X</b><span>@usewreckd</span></a>
         </div>
       </div>
@@ -326,8 +326,8 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
       </dl>
     </section>
     <aside class="token" id="tokenBox">
-      <h2>$WRECK</h2>
-      <p>The bay's own community token on Pons. Every $WRECK buy flashes the lighthouse on the cliff, and its beam grows with the last hour of trading. It funds the lighthouse: keeping the RPC feed running and adding the next rooms of the bay.</p>
+      <h2>$WRECKD</h2>
+      <p>The bay's own community token on Pons. Every $WRECKD buy flashes the lighthouse on the cliff, and its beam grows with the last hour of trading. It funds the lighthouse: keeping the RPC feed running and adding the next rooms of the bay.</p>
       <div class="ca" id="ca">The lighthouse is not lit yet. The contract address appears here after launch.</div>
       <div class="btns">
         <button class="btn" id="copyCa" type="button" aria-disabled="true">Copy CA</button>
@@ -364,7 +364,7 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
 <script>
 /* ======================= configuration ======================= */
 const CONFIG = {
-  TOKEN_CA: "",            // $WRECK contract, fill after launch
+  TOKEN_CA: "0x91b3de4dbdeb205125458501dc9fbaedb28cf0a4", // $WRECKD on Pons
   X_URL: "https://x.com/usewreckd",
   SITE_URL: "wreckd.xyz",
   RPC: "https://rpc.mainnet.chain.robinhood.com",
@@ -467,7 +467,7 @@ function applyTrade(e){
     if (e.tok){ if (e.side===0) s.devBag += e.tok; else s.devSold += e.tok; }
     if (!s.jumpNoticed && s.devIn > 0 && s.devOut >= s.devIn*0.8){ s.jumpNoticed = true; if (!S.silent) noticeJump(s, s.devIn, s.devOut); }
   }
-  if (s === S.lh.ship && e.side===0){ S.lh.flash = 1; if(!S.silent){ sfx("bell"); notice({kind:"light", eb:"The lighthouse", big:"$WRECK", line:"A light on the cliff. Someone bought $WRECK.", st:`${fmt(e.eth,3)} ETH`, ship:s, pri:3}); } pushLog(e.t,"light",`The lighthouse flashed: $WRECK buy · ${fmt(e.eth,3)} ETH`, s); }
+  if (s === S.lh.ship && e.side===0){ S.lh.flash = 1; if(!S.silent){ sfx("bell"); notice({kind:"light", eb:"The lighthouse", big:"$WRECKD", line:"A light on the cliff. Someone bought $WRECKD.", st:`${fmt(e.eth,3)} ETH`, ship:s, pri:3}); } pushLog(e.t,"light",`The lighthouse flashed: $WRECKD buy · ${fmt(e.eth,3)} ETH`, s); }
   if (s.state!=="graduated" && s.net >= (s.grad || CONFIG.GRAD)){ s.state="graduated"; s.gradAt=e.t; pushLog(e.t,"grad",`<b>${esc(s.sym)}</b> filled its curve and graduated`, s); if(!S.silent){ sfx("grad"); notice({kind:"grad", eb:"Open water", big:s.sym, line:"Filled her curve and sailed off to a DEX.", st:`${fmt(s.vol)} ETH traded · ${s.sharks.size} sharks survived`, ship:s, pri:3}); } }
 }
 // tokens sent to 0x…dEaD or to the zero address: a burn
@@ -779,7 +779,7 @@ async function loadDossier(ship){
   renderBook(true);
 }
 
-/* ======================= lighthouse ($WRECK) ======================= */
+/* ======================= lighthouse ($WRECKD) ======================= */
 async function lightTheLighthouse(){
   try{
     const ship = await fetchToken(CONFIG.TOKEN_CA);
@@ -959,7 +959,7 @@ function drawLighthouse(now){
     if (f > 0){ const hg = ctx.createRadialGradient(x, top-6, 1, x, top-6, 60*f+10); hg.addColorStop(0,`rgba(255,230,160,${.7*f})`); hg.addColorStop(1,"rgba(255,230,160,0)"); ctx.fillStyle=hg; ctx.fillRect(x-80,top-86,160,160); }
   }
   ctx.font = "500 10px 'IBM Plex Mono', monospace"; ctx.textAlign = "center"; ctx.fillStyle = lit ? "rgba(233,224,200,.85)" : "rgba(233,224,200,.45)";
-  ctx.fillText(lit ? "$WRECK" : "$WRECK · unlit", x, base+44);
+  ctx.fillText(lit ? "$WRECKD" : "$WRECKD · unlit", x, base+44);
   S.lh.x = x; S.lh.y = top;
 }
 
@@ -1177,7 +1177,7 @@ cv.addEventListener("mousemove", e => {
   S.hover = s; const tip = $("tip");
   if (s){ tip.style.display="block"; tip.style.left = mx+"px"; tip.style.top=my+"px";
     tip.innerHTML = `${esc(s.sym)} · ${short(s.token)} · ${fmt(s.vol)} ETH · ${stateName[s.state]}${s.sharks.size?` · ${s.sharks.size} shark${s.sharks.size>1?"s":""}`:""}`; cv.style.cursor="pointer"; }
-  else if (overLighthouse(mx,my)){ tip.style.display="block"; tip.style.left = mx+"px"; tip.style.top=my+"px"; tip.textContent = S.lh.ship ? `$WRECK lighthouse · ${fmt(S.lh.ship.vol)} ETH traded` : "$WRECK lighthouse · not lit yet"; cv.style.cursor="help"; }
+  else if (overLighthouse(mx,my)){ tip.style.display="block"; tip.style.left = mx+"px"; tip.style.top=my+"px"; tip.textContent = S.lh.ship ? `$WRECKD lighthouse · ${fmt(S.lh.ship.vol)} ETH traded` : "$WRECKD lighthouse · not lit yet"; cv.style.cursor="help"; }
   else { tip.style.display="none"; cv.style.cursor="crosshair"; }
 });
 cv.addEventListener("mouseleave", ()=>{ S.hover=null; $("tip").style.display="none"; });
@@ -1524,7 +1524,7 @@ $("modalClose").addEventListener("click", ()=>$("modal").classList.remove("open"
 $("modal").addEventListener("click", e => { if (e.target.id==="modal") $("modal").classList.remove("open"); });
 addEventListener("keydown", e => { if (e.key==="Escape") $("modal").classList.remove("open"); });
 
-/* ======================= $WRECK box ======================= */
+/* ======================= $WRECKD box ======================= */
 function initTop(){
   if (CONFIG.X_URL){ $("xTop").href = CONFIG.X_URL; const h = CONFIG.X_URL.split("/").filter(Boolean).pop(); $("xTop").querySelector("span").textContent = "@"+h; }
   if (!CONFIG.TOKEN_CA) return;
