@@ -42,14 +42,21 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .brand h1{font-family:var(--font-display);font-weight:400;font-size:clamp(34px,5.2vw,64px);line-height:.95;margin:0;letter-spacing:.01em;text-wrap:balance;text-shadow:0 2px 18px rgba(0,0,0,.6)}
 .brand h1.wm{display:flex;align-items:center;gap:.18em}
 .brand p{margin:10px 0 0;max-width:34ch;font-style:italic;color:var(--parchment-dim);font-size:clamp(15px,1.5vw,18px);text-shadow:0 1px 10px rgba(0,0,0,.8)}
-.toplinks{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;pointer-events:auto}
+.toplinks{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;pointer-events:auto}
+.br{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.modeline{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-data);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--parchment-dim);text-shadow:0 1px 6px #000}
+.modeline i{width:6px;height:6px;border-radius:50%;background:var(--kelp);box-shadow:0 0 8px var(--kelp)}
+.modeline.replay i{background:var(--brass);box-shadow:0 0 8px var(--brass)}
+.modeline.err i{background:var(--shark);box-shadow:none}
+.modeline .clock{font-size:10px;text-transform:none;letter-spacing:.04em}
+.modeline .clock:not(:empty)::before{content:"· ";}
 .toplinks .tl{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-data);font-size:12px;letter-spacing:.04em;padding:7px 11px;border:1px solid var(--rule);background:rgba(6,13,19,.6);backdrop-filter:blur(4px);color:var(--parchment);text-decoration:none;cursor:pointer;min-height:34px}
 .toplinks .tl:hover{border-color:var(--brass)}
 .toplinks .tl .lbl{color:var(--brass);letter-spacing:.12em;text-transform:uppercase;font-size:10px}
 .toplinks .tl[disabled]{cursor:default;color:var(--parchment-dim)}
 .toplinks .tl[disabled]:hover{border-color:var(--rule)}
 .toplinks .tl.x b{font-family:var(--font-display);font-weight:400;font-size:15px;line-height:1}
-.status{display:flex;flex-direction:column;align-items:flex-end;gap:10px;margin-right:clamp(60px,8vw,110px)}
+.status{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .pill{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-data);font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border:1px solid var(--rule);background:rgba(6,13,19,.55);backdrop-filter:blur(4px)}
 .pill i{width:8px;height:8px;border-radius:50%;background:var(--kelp);box-shadow:0 0 10px var(--kelp)}
 .pill.replay i{background:var(--brass);box-shadow:0 0 10px var(--brass)}
@@ -204,14 +211,12 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
       <div class="brand">
         <h1 class="wm"><svg width="0.92em" height="0.92em" viewBox="0 0 400 400" aria-hidden="true" style="flex:none;display:block"><defs><clipPath id="hma"><rect width="400" height="232"/></clipPath><clipPath id="hmb"><rect y="232" width="400" height="168"/></clipPath></defs><text x="200" y="300" text-anchor="middle" font-family="IM Fell English SC, Georgia, serif" font-size="260" fill="#e9e0c8" clip-path="url(#hma)">W</text><text x="200" y="300" text-anchor="middle" font-family="IM Fell English SC, Georgia, serif" font-size="260" fill="#1d4257" clip-path="url(#hmb)">W</text><line x1="60" y1="232" x2="340" y2="232" stroke="#c9a24a" stroke-width="10" stroke-linecap="round"/></svg><span>Wreckd</span></h1>
         <p>Every Pons launch sets sail. Most of them sink. The sharks bite in the first three seconds.</p>
+      </div>
+      <div class="status">
         <div class="toplinks">
           <button class="tl" id="caTop" type="button" disabled title="$WRECK contract address"><span class="lbl">$WRECK CA</span><span id="caTopTxt">launching soon</span></button>
           <a class="tl x" id="xTop" href="https://x.com/usewreckd" target="_blank" rel="noopener"><b>X</b><span>@usewreckd</span></a>
         </div>
-      </div>
-      <div class="status">
-        <span class="pill" id="mode"><i></i><span id="modeTxt">Connecting to Robinhood Chain…</span></span>
-        <div class="clock" id="clock">&nbsp;</div>
       </div>
     </div>
     <div class="hud-row">
@@ -224,11 +229,14 @@ footer{font-family:var(--font-data);font-size:12px;color:var(--parchment-dim);bo
         <div><b id="nVol">0.00</b><span>ETH traded</span></div>
         <div class="wx"><b id="wx">Calm</b><span id="wxSub">sea state</span></div>
       </div>
+      <div class="br">
+      <div class="modeline" id="mode"><i></i><span id="modeTxt">Connecting to Robinhood Chain…</span><span class="clock" id="clock"></span></div>
       <div class="legend">
         <span><em>Sail</em> grows with volume</span>
         <span><em>15 min</em> of silence sinks a ship</span>
         <span><em>4.2 ETH</em> in the curve graduates it</span>
         <span><em>Fire</em> on deck: tokens sent to the dead address</span>
+      </div>
       </div>
     </div>
   </div>
@@ -786,7 +794,7 @@ function lhActivity(){
 
 /* ======================= mode & boot ======================= */
 function setMode(mode, txt){
-  S.mode = mode; const p=$("mode"); p.className = "pill "+(mode==="replay"?"replay":mode==="error"?"err":"");
+  S.mode = mode; const p=$("mode"); p.className = "modeline "+(mode==="replay"?"replay":mode==="error"?"err":"");
   $("modeTxt").textContent = txt;
   $("foot").textContent = mode==="live" ? "Live feed" : mode==="replay" ? (location.protocol==="file:" ? "Opened from disk, so the live feed is off. Put the page on a website to go live." : "Showing a recording of real launches. The live feed could not be reached from here.") : "";
 }
